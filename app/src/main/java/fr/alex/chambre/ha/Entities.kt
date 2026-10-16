@@ -19,6 +19,10 @@ object Entities {
     const val HALF = "script.chambre_volet_mi_hauteur"
     const val WEATHER = "weather.forecast_maison"
 
+    /** Same as the BILRESA remotes' long press (automations « Chambre Porte » / « Chambre Lit Gauche »). */
+    const val DEFAULT_BRIGHTNESS_PCT = 70
+    const val DEFAULT_KELVIN = 2700
+
     val SCENES = listOf(
         Scene("script.chambre_scene_coucher", "Coucher"),
         Scene("script.chambre_scene_lecture", "Lecture"),

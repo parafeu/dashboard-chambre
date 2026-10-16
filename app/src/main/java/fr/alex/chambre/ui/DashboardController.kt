@@ -87,6 +87,18 @@ class DashboardController(
         fire("light", "turn_on", Entities.LIGHT, data(color, "transition" to JsonPrimitive(1)))
     }
 
+    fun resetDefault() {
+        _lastScene.value = null
+        fire(
+            "light", "turn_on", Entities.LIGHT,
+            data(
+                "brightness_pct" to JsonPrimitive(Entities.DEFAULT_BRIGHTNESS_PCT),
+                "color_temp_kelvin" to JsonPrimitive(Entities.DEFAULT_KELVIN),
+                "transition" to JsonPrimitive(1),
+            ),
+        )
+    }
+
     fun coverOpen() = fire("cover", "open_cover", Entities.COVER)
     fun coverStop() = fire("cover", "stop_cover", Entities.COVER)
     fun coverClose() = fire("cover", "close_cover", Entities.COVER)

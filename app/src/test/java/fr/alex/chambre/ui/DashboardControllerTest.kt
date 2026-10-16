@@ -142,4 +142,16 @@ class DashboardControllerTest {
             api.calls,
         )
     }
+
+    @Test
+    fun reset_default_matches_remote_long_press() = runTest {
+        val (api, c) = setup()
+        c.runScene("script.chambre_scene_coucher"); runCurrent()
+        c.resetDefault(); runCurrent()
+        assertEquals(
+            Call("light", "turn_on", Entities.LIGHT, json("brightness_pct" to 70, "color_temp_kelvin" to 2700, "transition" to 1)),
+            api.calls.last(),
+        )
+        assertNull(c.lastScene.value)
+    }
 }

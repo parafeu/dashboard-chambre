@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +64,8 @@ fun VerticalSlider(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     iconTint: Color = MaterialTheme.colorScheme.onPrimary,
+    topLabel: String? = null,
+    topLabelColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     var local by remember { mutableStateOf<Float?>(null) }
     var releases by remember { mutableIntStateOf(0) }
@@ -129,6 +132,14 @@ fun VerticalSlider(
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(if (track != null) Color.White else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)),
+            )
+        }
+        if (topLabel != null) {
+            Text(
+                topLabel,
+                Modifier.align(Alignment.TopCenter).padding(top = 20.dp),
+                style = MaterialTheme.typography.titleLarge,
+                color = topLabelColor,
             )
         }
         if (icon != null) {

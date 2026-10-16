@@ -1,6 +1,14 @@
 package fr.alex.chambre.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Thermostat
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,47 +70,32 @@ fun LightPanel(light: EntityState?, online: Boolean, controller: DashboardContro
 
     Section("Lumière", modifier) {
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                VerticalSlider(
-                    value = if (light == null) null else pct / 100f,
-                    onChange = { v -> (v * 100).roundToInt().also { dragPct = it; controller.setBrightness(it, final = false) } },
-                    onRelease = { v -> dragPct = null; controller.setBrightness((v * 100).roundToInt(), final = true) },
-                    enabled = enabled,
-                    icon = Icons.Filled.LightMode,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalIconButton(
-                        onClick = controller::toggleLight,
-                        enabled = enabled,
-                        colors = if (isOn) IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ) else IconButtonDefaults.filledTonalIconButtonColors(),
-                    ) { Icon(Icons.Filled.PowerSettingsNew, "Allumer / éteindre") }
-                    Text(
-                        (dragPct ?: pct).let { if (it == 0 && dragPct == null) "Éteinte" else "$it %" },
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                val k = light?.colorTempK
-                VerticalSlider(
-                    value = k?.let { ((it - minK).toFloat() / (maxK - minK)).coerceIn(0f, 1f) },
-                    onChange = { v -> (minK + v * (maxK - minK)).roundToInt().also { dragK = it; controller.setKelvin(it, final = false) } },
-                    onRelease = { v -> dragK = null; controller.setKelvin((minK + v * (maxK - minK)).roundToInt(), final = true) },
-                    track = Brush.verticalGradient(listOf(COLD, NEUTRAL, WARM)),
-                    enabled = enabled && isOn,
-                    icon = Icons.Filled.Thermostat,
-                    iconTint = Color(0xFF4A2800),
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                )
-                Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) {
-                    Text((dragK ?: k)?.let { "$it K" } ?: "Couleur", style = MaterialTheme.typography.titleMedium)
-                }
-            }
+            val shownPct = dragPct ?: pct
+            VerticalSlider(
+                value = if (light == null) null else pct / 100f,
+                onChange = { v -> (v * 100).roundToInt().also { dragPct = it; controller.setBrightness(it, final = false) } },
+                onRelease = { v -> dragPct = null; controller.setBrightness((v * 100).roundToInt(), final = true) },
+                enabled = enabled,
+                icon = Icons.Filled.LightMode,
+                topLabel = if (shownPct == 0 && dragPct == null) "Éteinte" else "$shownPct %",
+                topLabelColor = if (shownPct >= 90) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
+            val k = light?.colorTempK
+            VerticalSlider(
+                value = k?.let { ((it - minK).toFloat() / (maxK - minK)).coerceIn(0f, 1f) },
+                onChange = { v -> (minK + v * (maxK - minK)).roundToInt().also { dragK = it; controller.setKelvin(it, final = false) } },
+                onRelease = { v -> dragK = null; controller.setKelvin((minK + v * (maxK - minK)).roundToInt(), final = true) },
+                track = Brush.verticalGradient(listOf(COLD, NEUTRAL, WARM)),
+                enabled = enabled && isOn,
+                icon = Icons.Filled.Thermostat,
+                iconTint = Color(0xFF4A2800),
+                topLabel = (dragK ?: k)?.let { "$it K" } ?: "Couleur",
+                topLabelColor = Color(0xFF4A2800),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
         }
+        LightButtonGroup(isOn = isOn, enabled = enabled, onToggle = controller::toggleLight, onDefault = controller::resetDefault)
         Row(
             Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -138,5 +129,37 @@ fun LightPanel(light: EntityState?, online: Boolean, controller: DashboardContro
             onColor = { h, s, final -> controller.setHs(h, s, final) },
             onDismiss = { sheetOpen = false },
         )
+    }
+}
+
+/** M3 Expressive connected button group: power toggle + « Par défaut » (70 % · 2700 K). */
+@Composable
+private fun LightButtonGroup(isOn: Boolean, enabled: Boolean, onToggle: () -> Unit, onDefault: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().height(64.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Button(
+            onClick = onToggle,
+            enabled = enabled,
+            shape = RoundedCornerShape(topStart = 32.dp, bottomStart = 32.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isOn) colors.primary else colors.surfaceContainerHighest,
+                contentColor = if (isOn) colors.onPrimary else colors.onSurface,
+            ),
+            modifier = Modifier.weight(0.42f).fillMaxHeight(),
+        ) {
+            Icon(Icons.Filled.PowerSettingsNew, null, Modifier.size(24.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (isOn) "Allumée" else "Éteinte", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
+        FilledTonalButton(
+            onClick = onDefault,
+            enabled = enabled,
+            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 32.dp, bottomEnd = 32.dp),
+            modifier = Modifier.weight(0.58f).fillMaxHeight(),
+        ) {
+            Icon(Icons.Filled.RestartAlt, null, Modifier.size(24.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Par défaut", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
     }
 }
