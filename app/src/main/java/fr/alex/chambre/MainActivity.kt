@@ -6,19 +6,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.activity.viewModels
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.alex.chambre.ha.ConnState
+import fr.alex.chambre.settings.SettingsScreen
+import fr.alex.chambre.ui.DashboardScreen
+import fr.alex.chambre.ui.DashboardViewModel
 import fr.alex.chambre.ui.theme.ChambreTheme
 
 class MainActivity : ComponentActivity() {
+    private val vm: DashboardViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -27,14 +33,7 @@ class MainActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = Unit
         })
-        setContent {
-            ChambreTheme {
-                Box(
-                    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Chambre", style = MaterialTheme.typography.displayLarge) }
-            }
-        }
+        setContent { ChambreTheme { App(vm) } }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -47,5 +46,27 @@ class MainActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
         }
+    }
+}
+
+@Composable
+private fun App(vm: DashboardViewModel) {
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val conn by vm.ha.conn.collectAsStateWithLifecycle()
+    var settingsOpen by remember { mutableStateOf(false) }
+    val s = settings ?: return
+
+    if (settingsOpen || s.token.isBlank() || conn == ConnState.AUTH_FAILED) {
+        SettingsScreen(
+            initial = s,
+            conn = conn,
+            onSave = {
+                vm.saveSettings(it)
+                settingsOpen = false
+            },
+            onClose = { settingsOpen = false },
+        )
+    } else {
+        DashboardScreen(vm, onOpenSettings = { settingsOpen = true })
     }
 }
