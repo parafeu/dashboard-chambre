@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,7 +86,10 @@ class MainActivity : ComponentActivity() {
             minArea = { vm.settings.value?.sensitivity ?: Settings().sensitivity },
             previewEnabled = { vm.settingsOpen.value },
             onMotion = { vm.presence.onMotion() },
-        ).also { it.start() }
+        ).also { cam ->
+            cam.start()
+            lifecycleScope.launch { cam.preview.collect { vm.cameraPreview.value = it } }
+        }
     }
 
     private fun applyBrightness(p: Presence) {
@@ -131,11 +135,24 @@ private fun App(vm: DashboardViewModel) {
     var settingsOpen by remember { mutableStateOf(false) }
     val s = settings ?: return
 
+    val showSettings = settingsOpen || s.token.isBlank() || conn == ConnState.AUTH_FAILED
+    DisposableEffect(showSettings) {
+        vm.settingsOpen.value = showSettings
+        vm.presence.hold = showSettings
+        onDispose { }
+    }
+
     Box {
-        if (settingsOpen || s.token.isBlank() || conn == ConnState.AUTH_FAILED) {
+        if (showSettings) {
+            val battery by vm.battery.state.collectAsStateWithLifecycle()
+            val report by vm.batteryReporter.status.collectAsStateWithLifecycle()
+            val preview by vm.cameraPreview.collectAsStateWithLifecycle()
             SettingsScreen(
                 initial = s,
                 conn = conn,
+                battery = battery,
+                report = report,
+                preview = preview,
                 onSave = {
                     vm.saveSettings(it)
                     settingsOpen = false

@@ -72,4 +72,15 @@ class PresenceControllerTest {
         advance(10_000)
         assertEquals(Presence.ASLEEP, c.state.value)
     }
+
+    @Test
+    fun hold_prevents_sleep() = runTest { // RF5
+        val c = controller()
+        c.hold = true
+        advance(5 * 60_000)
+        assertEquals(Presence.AWAKE, c.state.value)
+        c.hold = false
+        advance(60_000)
+        assertEquals(Presence.ASLEEP, c.state.value)
+    }
 }

@@ -2,6 +2,7 @@ package fr.alex.chambre.ui
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build
 import fr.alex.chambre.battery.BatteryMonitor
 import fr.alex.chambre.battery.BatteryReporter
@@ -75,6 +76,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     /** True while the settings screen is shown (enables the camera preview). */
     val settingsOpen = MutableStateFlow(false)
+
+    /** Annotated camera frames, published only while the settings screen is open. */
+    val cameraPreview = MutableStateFlow<Bitmap?>(null)
 
     fun saveSettings(s: Settings) {
         viewModelScope.launch {

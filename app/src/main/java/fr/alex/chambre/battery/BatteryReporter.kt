@@ -90,7 +90,7 @@ class BatteryReporter(
         val webhook = store.webhookId() ?: api.register(cfg.url, cfg.token, deviceInfo(store.deviceId()))
             ?.also { store.saveWebhookId(it) }
         if (webhook == null) {
-            _status.value = ReportStatus.Error("Enregistrement refusé par Home Assistant")
+            _status.value = ReportStatus.Error("Enregistrement impossible (Home Assistant injoignable ou jeton refusé)")
             return false
         }
         if (sensorsRegisteredFor != webhook) {

@@ -23,6 +23,14 @@ class PresenceController(
 
     @Volatile
     private var lastActivity = now()
+
+    /** While true (e.g. the settings screen is open) the screen never sleeps. */
+    @Volatile
+    var hold = false
+        set(value) {
+            field = value
+            activity()
+        }
     private var job: Job? = null
 
     fun start() {
@@ -31,7 +39,7 @@ class PresenceController(
         job = scope.launch {
             while (isActive) {
                 delay(CHECK_INTERVAL_MS)
-                if (_state.value == Presence.AWAKE && now() - lastActivity >= sleepDelayMs()) {
+                if (!hold && _state.value == Presence.AWAKE && now() - lastActivity >= sleepDelayMs()) {
                     _state.value = Presence.ASLEEP
                 }
             }
