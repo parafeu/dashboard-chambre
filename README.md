@@ -44,11 +44,25 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
 
 ## Utilisation
 
-- **Réglages** : appui long de 3 s sur l'heure.
-- **Veille** : écran noir après le délai réglé (60 s par défaut) sans mouvement devant la caméra ni
-  toucher. Un mouvement ou un toucher réveille l'écran ; le premier toucher ne déclenche rien d'autre.
-- **Sensibilité caméra** : à ajuster dans les réglages si l'écran se réveille trop (augmenter) ou
-  pas assez (baisser).
+- **Réglages** : toucher la ligne « batterie + engrenage » sous la date. L'écran Réglages montre l'aperçu
+  caméra en direct (zones en mouvement en vert) ; il empêche la mise en veille tant qu'il est ouvert.
+- **Veille** : écran noir après le délai réglé (1 min par défaut) sans mouvement devant la caméra ni toucher.
+  Un mouvement ou un toucher réveille l'écran ; le premier toucher ne déclenche rien d'autre.
+- **Détection de mouvement** (OpenCV, soustraction de fond MOG2) : une zone qui bouge sur au moins 2 images
+  sur 3 réveille l'écran ; les changements de lumière (plus de 60 % de l'image d'un coup) et la propre
+  lumière de l'écran sont ignorés. Réglage « Taille minimale d'un mouvement » (3 % par défaut).
+- **Météo** : toucher le bloc météo pour passer de « Heures » (7 prochaines heures) à « Semaine » (6 jours) ;
+  retour automatique aux heures après 30 s.
 - **Par défaut** : remet la lumière à 70 % · 2700 K, comme l'appui long des télécommandes.
+
+## Batterie dans Home Assistant
+
+L'app s'enregistre via l'intégration **Mobile App** (appareil « Tablette chambre ») et publie :
+`sensor.tablette_chambre_batterie`, `binary_sensor.tablette_chambre_en_charge`,
+`sensor.tablette_chambre_temperature_batterie` (immédiatement au (dé)branchement, sinon au plus toutes les
+5 min, et toutes les 30 min dans tous les cas).
+
+L'automatisation HA « Tablette chambre – protection batterie » garde la batterie entre 40 et 80 % en pilotant
+la prise `switch.grillplats_plug_2` (coupure aussi au-delà de 40 °C, rallumage de sécurité sans nouvelles depuis 2 h).
 
 Les entités sont codées en dur dans `app/src/main/java/fr/alex/chambre/ha/Entities.kt`.
