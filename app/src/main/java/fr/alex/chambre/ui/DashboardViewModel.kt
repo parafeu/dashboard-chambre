@@ -45,6 +45,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     ).also { it.start() }
 
     fun saveSettings(s: Settings) {
-        viewModelScope.launch { store.save(s) }
+        viewModelScope.launch {
+            store.save(s)
+            ha.reconnect()
+        }
     }
 }

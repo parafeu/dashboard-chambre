@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,7 +59,13 @@ private val RAINBOW = Brush.sweepGradient(
 )
 
 @Composable
-fun LightPanel(light: EntityState?, online: Boolean, controller: DashboardController, modifier: Modifier = Modifier) {
+fun LightPanel(
+    light: EntityState?,
+    online: Boolean,
+    controller: DashboardController,
+    modifier: Modifier = Modifier,
+    asleep: Boolean = false,
+) {
     val enabled = online && light != null && !light.isUnavailable
     val isOn = light?.state == "on"
     val pct = if (isOn) light?.brightnessPct ?: 0 else 0
@@ -67,6 +74,8 @@ fun LightPanel(light: EntityState?, online: Boolean, controller: DashboardContro
     var dragPct by remember { mutableStateOf<Int?>(null) }
     var dragK by remember { mutableStateOf<Int?>(null) }
     var sheetOpen by remember { mutableStateOf(false) }
+    // The sheet lives in its own window above the sleep overlay: close it when the screen sleeps.
+    LaunchedEffect(asleep) { if (asleep) sheetOpen = false }
 
     Section("Lumière", modifier) {
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {

@@ -16,6 +16,12 @@ data class Settings(
     val sensitivity: Float = 0.02f,
 )
 
+/** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */
+fun normalizeUrl(url: String): String {
+    val u = url.trim().trimEnd('/')
+    return if (u.isEmpty() || "://" in u) u else "http://$u"
+}
+
 class SettingsStore(private val dataStore: DataStore<Preferences>) {
 
     val settings: Flow<Settings> = dataStore.data.map { p ->
@@ -30,7 +36,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
 
     suspend fun save(s: Settings) {
         dataStore.edit { p ->
-            p[URL] = s.url.trim().trimEnd('/')
+            p[URL] = normalizeUrl(s.url)
             p[TOKEN] = s.token.trim()
             p[SLEEP] = s.sleepDelaySec
             p[SENSITIVITY] = s.sensitivity

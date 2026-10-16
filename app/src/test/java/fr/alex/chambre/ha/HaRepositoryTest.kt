@@ -167,4 +167,23 @@ class HaRepositoryTest {
         withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
         Unit
     }
+
+    @Test
+    fun invalid_url_goes_offline_instead_of_crashing() = runBlocking { // C1
+        val r = HaRepository(scope, client, flowOf(HaConfig("homeassistant.local:8123", "secret")), listOf(10_000))
+        withTimeout(5_000) { r.conn.first { it == ConnState.OFFLINE } }
+        Unit
+    }
+
+    @Test
+    fun reconnect_retries_after_auth_failure() = runBlocking { // I1
+        enqueue(FakeHa(acceptToken = false))
+        val ok = FakeHa().also(::enqueue)
+        val r = repo()
+        withTimeout(5_000) { r.conn.first { it == ConnState.AUTH_FAILED } }
+        r.reconnect()
+        ok.handshake()
+        withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
+        Unit
+    }
 }

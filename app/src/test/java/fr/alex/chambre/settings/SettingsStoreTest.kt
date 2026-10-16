@@ -47,4 +47,11 @@ class SettingsStoreTest {
         assertEquals("http://ha:8123", read.url)
         assertEquals("tok", read.token)
     }
+
+    @Test
+    fun adds_http_scheme_when_missing() = runBlocking { // C1
+        val s = store()
+        s.save(Settings(url = "192.168.1.10:8123", token = "t"))
+        assertEquals("http://192.168.1.10:8123", s.settings.first().url)
+    }
 }

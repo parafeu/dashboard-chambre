@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -63,8 +64,10 @@ class HaRepository(
     private var current: HaConnection? = null
     private val pending = ConcurrentHashMap<Int, CompletableDeferred<Incoming.Result>>()
 
+    private val retries = MutableStateFlow(0)
+
     init {
-        scope.launch { config.collectLatest { run(it) } }
+        scope.launch { config.combine(retries) { cfg, _ -> cfg }.collectLatest { run(it) } }
     }
 
     private suspend fun run(cfg: HaConfig) {
@@ -87,7 +90,11 @@ class HaRepository(
 
     /** Runs one connection until it closes; returns AUTH_FAILED or OFFLINE. */
     private suspend fun session(cfg: HaConfig, onConnected: () -> Unit): ConnState {
-        val c = HaConnection(client, cfg.url)
+        val c = try {
+            HaConnection(client, cfg.url)
+        } catch (e: IllegalArgumentException) {
+            return ConnState.OFFLINE // malformed URL: stay offline instead of crashing the launcher
+        }
         var subId = -1
         var forecastId = -1
         try {
@@ -126,6 +133,11 @@ class HaRepository(
             e.removed.forEach { map.remove(it) }
             map
         }
+    }
+
+    /** Forces a new connection attempt (e.g. after saving settings, even when unchanged). */
+    fun reconnect() {
+        retries.value++
     }
 
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {

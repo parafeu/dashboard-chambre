@@ -78,8 +78,10 @@ fun HeaderBar(
             modifier = Modifier.pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
-                    val released = withTimeoutOrNull(3_000) { waitForUpOrCancellation() }
-                    if (released == null) onOpenSettings()
+                    // null means the 3 s elapsed with the finger still down; a lift or a swipe
+                    // away (cancellation) returns Unit and must not open the settings.
+                    val endedEarly = withTimeoutOrNull(3_000) { waitForUpOrCancellation(); Unit }
+                    if (endedEarly == null) onOpenSettings()
                 }
             },
         )

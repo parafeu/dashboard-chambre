@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.temperature
+import fr.alex.chambre.presence.Presence
 
 /** A titled rounded container on surfaceContainer. */
 @Composable
@@ -48,6 +49,7 @@ fun DashboardScreen(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     val forecast by vm.ha.forecast.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val lastScene by vm.controller.lastScene.collectAsStateWithLifecycle()
+    val presence by vm.presence.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
 
@@ -66,7 +68,7 @@ fun DashboardScreen(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
                 )
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     ScenesPanel(entities, lastScene, online, vm.controller::runScene, Modifier.weight(1.1f))
-                    LightPanel(entities[Entities.LIGHT], online, vm.controller, Modifier.weight(1.4f))
+                    LightPanel(entities[Entities.LIGHT], online, vm.controller, Modifier.weight(1.4f), asleep = presence == Presence.ASLEEP)
                     CoverPanel(entities[Entities.COVER], online, vm.controller, Modifier.weight(1f))
                 }
             }
