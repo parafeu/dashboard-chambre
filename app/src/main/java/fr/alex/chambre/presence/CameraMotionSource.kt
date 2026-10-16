@@ -59,7 +59,12 @@ class CameraMotionSource(
                         val frame = MotionDetector.downsample(bytes, it.width, it.height, plane.rowStride)
                         val prev = previous
                         previous = frame
-                        if (prev != null && MotionDetector.score(prev, frame) > sensitivity()) onMotion()
+                        if (prev == null) return@use
+                        val score = MotionDetector.score(prev, frame)
+                        if (score > sensitivity()) {
+                            Log.d(TAG, "motion score=$score")
+                            onMotion()
+                        }
                     }
                 }
                 p.unbindAll()
