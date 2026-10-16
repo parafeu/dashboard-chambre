@@ -79,6 +79,10 @@ class HaRepositoryTest {
         val fc = next()
         assertEquals("weather/subscribe_forecast", fc["type"]!!.jsonPrimitive.content)
         assertEquals(Entities.WEATHER, fc["entity_id"]!!.jsonPrimitive.content)
+        assertEquals("hourly", fc["forecast_type"]!!.jsonPrimitive.content)
+        val daily = next()
+        assertEquals("daily", daily["forecast_type"]!!.jsonPrimitive.content)
+        assertEquals(3, daily["id"]!!.jsonPrimitive.int)
         return sub["id"]!!.jsonPrimitive.int to fc["id"]!!.jsonPrimitive.int
     }
 
@@ -105,6 +109,9 @@ class HaRepositoryTest {
         assertEquals(null, light.brightnessPct)
         val fc = withTimeout(5_000) { r.forecast.first { it.isNotEmpty() } }
         assertEquals(20.5, fc.single().temperature, 0.0)
+        fake.socket.send("""{"id":3,"type":"event","event":{"type":"daily","forecast":[{"datetime":"2026-10-17T10:00:00+00:00","condition":"cloudy","temperature":18.3,"templow":13.5,"precipitation":2.6}]}}""")
+        val daily = withTimeout(5_000) { r.forecastDaily.first { it.isNotEmpty() } }
+        assertEquals(13.5, daily.single().templow!!, 0.0)
     }
 
     @Test
@@ -116,9 +123,9 @@ class HaRepositoryTest {
         val result = async(Dispatchers.IO) { r.call("light", "turn_on", Entities.LIGHT, JsonObject(mapOf("brightness_pct" to JsonPrimitive(40)))) }
         val msg = fake.next()
         assertEquals("call_service", msg["type"]!!.jsonPrimitive.content)
-        assertEquals(3, msg["id"]!!.jsonPrimitive.int)
+        assertEquals(4, msg["id"]!!.jsonPrimitive.int)
         assertEquals(40, msg["service_data"]!!.jsonObject["brightness_pct"]!!.jsonPrimitive.int)
-        fake.socket.send("""{"id":3,"type":"result","success":true,"result":null}""")
+        fake.socket.send("""{"id":4,"type":"result","success":true,"result":null}""")
         assertTrue(withTimeout(5_000) { result.await() })
     }
 

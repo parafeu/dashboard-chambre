@@ -27,7 +27,8 @@ data class HaConfig(val url: String, val token: String)
 interface HaApi {
     val conn: StateFlow<ConnState>
     val entities: StateFlow<Map<String, EntityState>>
-    val forecast: StateFlow<List<ForecastHour>>
+    val forecast: StateFlow<List<ForecastEntry>>
+    val forecastDaily: StateFlow<List<ForecastEntry>>
     val errors: SharedFlow<String>
 
     suspend fun call(
@@ -54,8 +55,11 @@ class HaRepository(
     private val _entities = MutableStateFlow<Map<String, EntityState>>(emptyMap())
     override val entities: StateFlow<Map<String, EntityState>> = _entities.asStateFlow()
 
-    private val _forecast = MutableStateFlow<List<ForecastHour>>(emptyList())
-    override val forecast: StateFlow<List<ForecastHour>> = _forecast.asStateFlow()
+    private val _forecast = MutableStateFlow<List<ForecastEntry>>(emptyList())
+    override val forecast: StateFlow<List<ForecastEntry>> = _forecast.asStateFlow()
+
+    private val _forecastDaily = MutableStateFlow<List<ForecastEntry>>(emptyList())
+    override val forecastDaily: StateFlow<List<ForecastEntry>> = _forecastDaily.asStateFlow()
 
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
@@ -97,6 +101,7 @@ class HaRepository(
         }
         var subId = -1
         var forecastId = -1
+        var dailyId = -1
         try {
             for (msg in c.incoming) {
                 when (msg) {
@@ -106,6 +111,8 @@ class HaRepository(
                         c.send(HaProtocol.subscribeEntities(subId, Entities.ALL))
                         forecastId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(forecastId, Entities.WEATHER))
+                        dailyId = c.nextId()
+                        c.send(HaProtocol.subscribeForecast(dailyId, Entities.WEATHER, "daily"))
                         current = c
                         _conn.value = ConnState.CONNECTED
                         onConnected()
@@ -113,7 +120,10 @@ class HaRepository(
                     is Incoming.AuthInvalid -> return ConnState.AUTH_FAILED
                     is Incoming.Result -> pending.remove(msg.id)?.complete(msg)
                     is Incoming.EntitiesEvent -> if (msg.id == subId) applyEntities(msg)
-                    is Incoming.ForecastEvent -> if (msg.id == forecastId) _forecast.value = msg.hours
+                    is Incoming.ForecastEvent -> when (msg.id) {
+                        forecastId -> _forecast.value = msg.hours
+                        dailyId -> _forecastDaily.value = msg.hours
+                    }
                     Incoming.Unknown -> Unit
                 }
             }

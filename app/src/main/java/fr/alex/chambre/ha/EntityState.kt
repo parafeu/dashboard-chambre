@@ -14,10 +14,12 @@ data class EntityState(
     val attributes: JsonObject,
 )
 
-data class ForecastHour(
+data class ForecastEntry(
     val time: Instant,
     val condition: String,
     val temperature: Double,
+    val templow: Double?,
+    val precipitation: Double?,
 )
 
 private fun EntityState.number(key: String): Double? =

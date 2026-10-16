@@ -47,6 +47,8 @@ fun Section(title: String, modifier: Modifier = Modifier, content: @Composable C
 fun DashboardScreen(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     val entities by vm.ha.entities.collectAsStateWithLifecycle()
     val forecast by vm.ha.forecast.collectAsStateWithLifecycle()
+    val forecastDaily by vm.ha.forecastDaily.collectAsStateWithLifecycle()
+    val battery by vm.battery.state.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val lastScene by vm.controller.lastScene.collectAsStateWithLifecycle()
     val presence by vm.presence.state.collectAsStateWithLifecycle()
@@ -62,8 +64,10 @@ fun DashboardScreen(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
                 HeaderBar(
                     currentCondition = weather?.state?.takeUnless { it == "unavailable" || it == "unknown" },
                     currentTemp = weather?.temperature,
-                    forecast = forecast,
+                    hourly = forecast,
+                    daily = forecastDaily,
                     online = online,
+                    battery = battery,
                     onOpenSettings = onOpenSettings,
                 )
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {

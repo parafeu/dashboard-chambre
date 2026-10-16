@@ -3,7 +3,7 @@ package fr.alex.chambre.ui
 import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.EntityState
-import fr.alex.chambre.ha.ForecastHour
+import fr.alex.chambre.ha.ForecastEntry
 import fr.alex.chambre.ha.HaApi
 import fr.alex.chambre.ha.Swatch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,7 +26,8 @@ private data class Call(val domain: String, val service: String, val entityId: S
 private class FakeApi : HaApi {
     override val conn = MutableStateFlow(ConnState.CONNECTED)
     override val entities = MutableStateFlow<Map<String, EntityState>>(emptyMap())
-    override val forecast = MutableStateFlow<List<ForecastHour>>(emptyList())
+    override val forecast = MutableStateFlow<List<ForecastEntry>>(emptyList())
+    override val forecastDaily = MutableStateFlow<List<ForecastEntry>>(emptyList())
     override val errors = MutableSharedFlow<String>()
     val calls = mutableListOf<Call>()
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {

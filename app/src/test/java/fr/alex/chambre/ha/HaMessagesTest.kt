@@ -80,10 +80,27 @@ class HaMessagesTest {
         assertEquals(2, msg.id)
         assertEquals(
             listOf(
-                ForecastHour(Instant.parse("2026-10-16T21:00:00Z"), "clear-night", 16.1),
-                ForecastHour(Instant.parse("2026-10-16T22:00:00Z"), "cloudy", 15.0),
+                ForecastEntry(Instant.parse("2026-10-16T21:00:00Z"), "clear-night", 16.1, null, null),
+                ForecastEntry(Instant.parse("2026-10-16T22:00:00Z"), "cloudy", 15.0, null, null),
             ),
             msg.hours,
+        )
+    }
+
+    @Test
+    fun parses_daily_forecast_with_low_and_precipitation() {
+        val msg = HaProtocol.parse(
+            """{"id":3,"type":"event","event":{"type":"daily","forecast":[
+              {"datetime":"2026-10-20T10:00:00+00:00","condition":"rainy","temperature":18.6,"templow":13.1,"precipitation":24.5}]}}""",
+        ) as Incoming.ForecastEvent
+        assertEquals(listOf(ForecastEntry(Instant.parse("2026-10-20T10:00:00Z"), "rainy", 18.6, 13.1, 24.5)), msg.hours)
+    }
+
+    @Test
+    fun builds_daily_subscription() {
+        assertEquals(
+            Json.parseToJsonElement("""{"id":3,"type":"weather/subscribe_forecast","entity_id":"weather.forecast_maison","forecast_type":"daily"}"""),
+            Json.parseToJsonElement(HaProtocol.subscribeForecast(3, "weather.forecast_maison", "daily")),
         )
     }
 

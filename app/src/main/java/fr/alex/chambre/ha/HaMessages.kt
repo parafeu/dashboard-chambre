@@ -26,7 +26,7 @@ sealed interface Incoming {
         val changed: Map<String, JsonObject>,
         val removed: List<String>,
     ) : Incoming
-    data class ForecastEvent(val id: Int, val hours: List<ForecastHour>) : Incoming
+    data class ForecastEvent(val id: Int, val hours: List<ForecastEntry>) : Incoming
     data object Unknown : Incoming
 }
 
@@ -57,7 +57,15 @@ object HaProtocol {
                 val o = el as? JsonObject ?: return@mapNotNull null
                 val time = o.str("datetime")?.let { runCatching { OffsetDateTime.parse(it).toInstant() }.getOrNull() }
                 val temp = (o["temperature"] as? JsonPrimitive)?.doubleOrNull
-                if (time == null || temp == null) null else ForecastHour(time, o.str("condition") ?: "", temp)
+                if (time == null || temp == null) {
+                    null
+                } else {
+                    ForecastEntry(
+                        time, o.str("condition") ?: "", temp,
+                        templow = (o["templow"] as? JsonPrimitive)?.doubleOrNull,
+                        precipitation = (o["precipitation"] as? JsonPrimitive)?.doubleOrNull,
+                    )
+                }
             }
             return Incoming.ForecastEvent(id, hours)
         }
@@ -81,11 +89,11 @@ object HaProtocol {
         putJsonArray("entity_ids") { ids.forEach { add(JsonPrimitive(it)) } }
     }.toString()
 
-    fun subscribeForecast(id: Int, entityId: String): String = buildJsonObject {
+    fun subscribeForecast(id: Int, entityId: String, type: String = "hourly"): String = buildJsonObject {
         put("id", id)
         put("type", "weather/subscribe_forecast")
         put("entity_id", entityId)
-        put("forecast_type", "hourly")
+        put("forecast_type", type)
     }.toString()
 
     fun callService(

@@ -43,3 +43,9 @@ fun weatherLabel(condition: String): String = when (condition) {
     "windy", "windy-variant" -> "Venteux"
     else -> ""
 }
+
+private val DAY = java.time.format.DateTimeFormatter.ofPattern("EEE", java.util.Locale.FRENCH)
+
+/** « Auj. » for today, otherwise the short French day name (« Sam. »). */
+fun dayLabel(day: java.time.LocalDate, today: java.time.LocalDate): String =
+    if (day == today) "Auj." else DAY.format(day).replaceFirstChar { it.titlecase(java.util.Locale.FRENCH) }
