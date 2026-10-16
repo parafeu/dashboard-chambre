@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -106,13 +107,14 @@ fun LightPanel(light: EntityState?, online: Boolean, controller: DashboardContro
         }
         Row(
             Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Entities.SWATCHES.forEach { sw ->
                 Box(
                     Modifier
-                        .size(44.dp)
+                        .weight(1f)
+                        .aspectRatio(1f)
                         .clip(CircleShape)
                         .background(Color(sw.displayColor))
                         .clickable(enabled = enabled) { controller.applySwatch(sw) },
@@ -120,7 +122,8 @@ fun LightPanel(light: EntityState?, online: Boolean, controller: DashboardContro
             }
             Box(
                 Modifier
-                    .size(44.dp)
+                    .weight(1f)
+                    .aspectRatio(1f)
                     .clip(CircleShape)
                     .background(RAINBOW)
                     .border(3.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape)
