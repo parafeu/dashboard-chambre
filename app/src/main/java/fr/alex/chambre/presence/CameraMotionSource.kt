@@ -4,7 +4,11 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.SystemClock
 import android.util.Log
+import android.hardware.camera2.CaptureRequest
+import android.util.Range
 import android.util.Size
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.resolutionselector.ResolutionSelector
@@ -23,6 +27,7 @@ import java.util.concurrent.Executors
  * Watches the front camera (~3 fps) and calls [onMotion] when [MotionDecider] sees real motion.
  * While [previewEnabled] is true, publishes an annotated preview on [preview].
  */
+@OptIn(ExperimentalCamera2Interop::class)
 class CameraMotionSource(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
@@ -62,7 +67,7 @@ class CameraMotionSource(
                     Log.w(TAG, "No front camera: sleep on touch only")
                     return@addListener
                 }
-                val analysis = ImageAnalysis.Builder()
+                val builder = ImageAnalysis.Builder()
                     .setResolutionSelector(
                         ResolutionSelector.Builder()
                             .setResolutionStrategy(
@@ -71,7 +76,10 @@ class CameraMotionSource(
                             .build(),
                     )
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
+                // We analyse ~3 fps: capturing at a fixed 15 fps instead of 30 halves the camera pipeline's work.
+                Camera2Interop.Extender(builder)
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(CAPTURE_FPS, CAPTURE_FPS))
+                val analysis = builder.build()
                 analysis.setAnalyzer(executor) { image -> image.use { analyze(it) } }
                 p.unbindAll()
                 p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, analysis)
@@ -115,5 +123,6 @@ class CameraMotionSource(
     private companion object {
         const val TAG = "CameraMotion"
         const val FRAME_INTERVAL_MS = 300L
+        const val CAPTURE_FPS = 15
     }
 }
