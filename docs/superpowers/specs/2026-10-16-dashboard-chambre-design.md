@@ -5,7 +5,7 @@ Statut : validé en brainstorming (disposition B2, palette Ambre chaud, sélecte
 
 ## 1. Contexte et objectif
 
-Une Galaxy Tab S2 sous **LineageOS (Android 12, API 31)**, fixée dans la chambre en paysage,
+Une Galaxy Tab S2 sous **LineageOS (Android 11, API 30)**, fixée dans la chambre en paysage,
 affiche aujourd'hui le dashboard Lovelace `dashboard-chambre/chambre` via **Fully Kiosk**.
 
 Problèmes :
@@ -61,7 +61,7 @@ Pastilles couleur (reprises de la config Lovelace actuelle, transition 1 s) :
 
 ## 4. Architecture
 
-App Kotlin unique, `minSdk 31`, `targetSdk 35`, package `fr.alex.chambre`.
+App Kotlin unique, `minSdk 30`, `targetSdk 35`, package `fr.alex.chambre`.
 
 ```
 app/src/main/java/fr/alex/chambre/
@@ -188,14 +188,14 @@ Tests unitaires JVM (JUnit + kotlinx-coroutines-test + Turbine) :
 - `HaConnection` contre un `MockWebServer` OkHttp : auth, ids croissants, reconnexion.
 
 Validation de bout en bout sur émulateur :
-- AVD Android 12 (API 31), 2048×1536, densité 320 dpi, paysage, caméra frontale = webcam.
+- AVD Android 11 (API 30), 2048×1536, densité 320 dpi, paysage, caméra frontale = webcam.
 - Connexion au vrai HA de l'utilisateur ; vérification par captures d'écran.
 - Les tests qui actionnent la lumière / le volet réels sont annoncés avant exécution.
 
 ## 11. Outillage et installation
 
 - Android SDK (cmdline-tools, platform-tools, build-tools, platform 35, emulator,
-  system image `android-31;google_apis;x86_64`) installés dans `%LOCALAPPDATA%\Android\Sdk`.
+  system image `android-30;google_apis;x86_64`) installés dans `%LOCALAPPDATA%\Android\Sdk`.
 - JDK 21 (le JDK 25 présent n'est pas supporté par AGP) ; Gradle wrapper.
 - Build release signée avec une clé locale, R8 activé (pas de baseline profile pour la v1).
 - Déploiement tablette : `adb install`, choix du lanceur par défaut, désactivation de Fully Kiosk,

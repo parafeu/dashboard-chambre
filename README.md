@@ -1,7 +1,7 @@
 # Dashboard Chambre
 
 App Android native (Jetpack Compose, Material 3) qui remplace Fully Kiosk + Lovelace sur la
-Galaxy Tab S2 (LineageOS, Android 12) de la chambre : contrôle lumière / volet / scènes,
+Galaxy Tab S2 (LineageOS, Android 11) de la chambre : contrôle lumière / volet / scènes,
 heure et météo, veille de l'écran pilotée par la caméra frontale.
 
 Spec : `docs/superpowers/specs/2026-10-16-dashboard-chambre-design.md`
