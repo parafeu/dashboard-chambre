@@ -41,6 +41,15 @@ val EntityState.coverPosition: Int?
 val EntityState.temperature: Double?
     get() = number("temperature")
 
+/** Hue (0..360) and saturation (0..100), if the light reports them. */
+val EntityState.hsColor: Pair<Float, Float>?
+    get() {
+        val arr = attributes["hs_color"] as? JsonArray ?: return null
+        val h = (arr.getOrNull(0) as? JsonPrimitive)?.doubleOrNull ?: return null
+        val s = (arr.getOrNull(1) as? JsonPrimitive)?.doubleOrNull ?: return null
+        return h.toFloat() to s.toFloat()
+    }
+
 val EntityState.isUnavailable: Boolean
     get() = state == "unavailable" || state == "unknown"
 

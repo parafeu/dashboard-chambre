@@ -136,4 +136,11 @@ class HaMessagesTest {
         assertEquals(Incoming.Unknown, HaProtocol.parse("""{"type":"pong","id":9}"""))
         assertEquals(Incoming.Unknown, HaProtocol.parse("not json"))
     }
+
+    @Test
+    fun reads_hs_color() {
+        val e = HaProtocol.parse("""{"id":1,"type":"event","event":{"a":{"light.x":{"s":"on","a":{"hs_color":[28.4,65.7]}}}}}""") as Incoming.EntitiesEvent
+        assertEquals(28.4f to 65.7f, e.added.getValue("light.x").hsColor)
+        assertNull(EntityState("x.y", "off", JsonObject(emptyMap())).hsColor)
+    }
 }
