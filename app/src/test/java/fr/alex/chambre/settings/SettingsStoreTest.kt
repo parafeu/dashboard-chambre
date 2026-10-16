@@ -54,4 +54,22 @@ class SettingsStoreTest {
         s.save(Settings(url = "192.168.1.10:8123", token = "t"))
         assertEquals("http://192.168.1.10:8123", s.settings.first().url)
     }
+
+    @Test
+    fun device_id_is_generated_once_and_kept() = runBlocking {
+        val s = store()
+        val id = s.deviceId()
+        assertEquals(36, id.length)
+        assertEquals(id, s.deviceId())
+    }
+
+    @Test
+    fun webhook_id_round_trip_and_clear() = runBlocking {
+        val s = store()
+        assertEquals(null, s.webhookId())
+        s.saveWebhookId("wh1")
+        assertEquals("wh1", s.webhookId())
+        s.saveWebhookId(null)
+        assertEquals(null, s.webhookId())
+    }
 }

@@ -2,6 +2,11 @@ package fr.alex.chambre.ui
 
 import android.app.Application
 import android.content.Context
+import android.os.Build
+import fr.alex.chambre.battery.BatteryMonitor
+import fr.alex.chambre.battery.BatteryReporter
+import fr.alex.chambre.ha.DeviceInfo
+import fr.alex.chambre.ha.MobileAppClient
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -44,6 +49,29 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope,
         sleepDelayMs = { (settings.value?.sleepDelaySec ?: Settings().sleepDelaySec) * 1_000L },
     ).also { it.start() }
+
+    val battery = BatteryMonitor(app).also { it.start() }
+
+    val batteryReporter = BatteryReporter(
+        viewModelScope,
+        battery.state,
+        settings.filterNotNull().map { HaConfig(it.url, it.token) }.distinctUntilChanged(),
+        MobileAppClient(client),
+        store,
+        deviceInfo = { id ->
+            DeviceInfo(
+                deviceId = id,
+                appVersion = app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "?",
+                manufacturer = Build.MANUFACTURER,
+                model = Build.MODEL,
+                osVersion = Build.VERSION.RELEASE,
+            )
+        },
+    )
+
+    override fun onCleared() {
+        battery.stop()
+    }
 
     /** True while the settings screen is shown (enables the camera preview). */
     val settingsOpen = MutableStateFlow(false)
