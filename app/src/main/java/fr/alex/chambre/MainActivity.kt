@@ -65,7 +65,12 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                vm.presence.state.collect { applyBrightness(it) }
+                var previous: Presence? = null
+                vm.presence.state.collect {
+                    applyBrightness(it)
+                    if (previous != null && previous != it) camera?.onScreenTransition()
+                    previous = it
+                }
             }
         }
 
@@ -77,7 +82,8 @@ class MainActivity : ComponentActivity() {
         camera = CameraMotionSource(
             context = this,
             lifecycleOwner = this,
-            sensitivity = { vm.settings.value?.sensitivity ?: Settings().sensitivity },
+            minArea = { vm.settings.value?.sensitivity ?: Settings().sensitivity },
+            previewEnabled = { vm.settingsOpen.value },
             onMotion = { vm.presence.onMotion() },
         ).also { it.start() }
     }

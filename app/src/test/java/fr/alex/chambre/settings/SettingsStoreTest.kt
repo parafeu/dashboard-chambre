@@ -26,7 +26,7 @@ class SettingsStoreTest {
     @Test
     fun defaults() = runBlocking {
         assertEquals(
-            Settings(url = "http://homeassistant.local:8123", token = "", sleepDelaySec = 60, sensitivity = 0.02f),
+            Settings(url = "http://homeassistant.local:8123", token = "", sleepDelaySec = 60, sensitivity = 0.03f),
             store().settings.first(),
         )
     }

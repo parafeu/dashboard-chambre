@@ -1,6 +1,7 @@
 package fr.alex.chambre.presence
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
@@ -11,25 +12,48 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.opencv.android.OpenCVLoader
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
- * Watches the front camera at low resolution (~3 fps) and calls [onMotion] when consecutive
- * frames differ by more than [sensitivity] (fraction of pixels). Bound to [lifecycleOwner].
+ * Watches the front camera (~3 fps) and calls [onMotion] when [MotionDecider] sees real motion.
+ * While [previewEnabled] is true, publishes an annotated preview on [preview].
  */
 class CameraMotionSource(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val sensitivity: () -> Float,
+    minArea: () -> Float,
+    private val previewEnabled: () -> Boolean,
     private val onMotion: () -> Unit,
 ) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private var provider: ProcessCameraProvider? = null
-    private var previous: ByteArray? = null
+    private var analyzer: OpenCvMotionAnalyzer? = null
+    private val decider = MotionDecider(minArea, SystemClock::elapsedRealtime)
     private var lastFrameAt = 0L
+    private var relearn = true
+    private var frames = 0
+
+    @Volatile
+    private var blankRequested = false
+
+    private val _preview = MutableStateFlow<Bitmap?>(null)
+    val preview: StateFlow<Bitmap?> = _preview.asStateFlow()
+
+    /** Call when the screen sleeps or wakes: its own light change must not count as motion. */
+    fun onScreenTransition() {
+        blankRequested = true
+    }
 
     fun start() {
+        if (!OpenCVLoader.initLocal()) {
+            Log.w(TAG, "OpenCV failed to load: sleep on touch only")
+            return
+        }
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             try {
@@ -42,37 +66,45 @@ class CameraMotionSource(
                     .setResolutionSelector(
                         ResolutionSelector.Builder()
                             .setResolutionStrategy(
-                                ResolutionStrategy(Size(160, 120), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER),
+                                ResolutionStrategy(Size(320, 240), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER),
                             )
                             .build(),
                     )
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                analysis.setAnalyzer(executor) { image ->
-                    image.use {
-                        val now = SystemClock.elapsedRealtime()
-                        if (now - lastFrameAt < FRAME_INTERVAL_MS) return@use
-                        lastFrameAt = now
-                        val plane = it.planes[0]
-                        val buffer = plane.buffer.also { b -> b.rewind() }
-                        val bytes = ByteArray(buffer.remaining()).also { b -> buffer.get(b) }
-                        val frame = MotionDetector.downsample(bytes, it.width, it.height, plane.rowStride)
-                        val prev = previous
-                        previous = frame
-                        if (prev == null) return@use
-                        val score = MotionDetector.score(prev, frame)
-                        if (score > sensitivity()) {
-                            Log.d(TAG, "motion score=$score")
-                            onMotion()
-                        }
-                    }
-                }
+                analysis.setAnalyzer(executor) { image -> image.use { analyze(it) } }
                 p.unbindAll()
                 p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, analysis)
             } catch (e: Exception) {
                 Log.w(TAG, "Camera unavailable: sleep on touch only", e)
             }
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    private fun analyze(image: androidx.camera.core.ImageProxy) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastFrameAt < FRAME_INTERVAL_MS) return
+        lastFrameAt = now
+        if (blankRequested) {
+            blankRequested = false
+            decider.blank()
+            relearn = true
+        }
+        val a = (analyzer ?: OpenCvMotionAnalyzer().also { analyzer = it })
+        val plane = image.planes[0]
+        val wantPreview = previewEnabled()
+        val relearning = relearn
+        val result = a.analyze(plane.buffer, image.width, image.height, plane.rowStride, relearning, wantPreview)
+        relearn = false
+        _preview.value = if (wantPreview) result.preview else null
+        // A full relearn rebuilds the background from this frame; its mask is meaningless.
+        if (relearning) return
+        val decision = decider.onFrame(result.stats)
+        if (decision == MotionResult.GLOBAL_CHANGE) relearn = true
+        if (decision == MotionResult.MOTION) onMotion()
+        if (decision != MotionResult.NONE || ++frames % 30 == 0) {
+            Log.d(TAG, "res=$decision fg=%.3f blob=%.3f".format(result.stats.fgFraction, result.stats.largestBlobFraction))
+        }
     }
 
     fun stop() {
@@ -82,6 +114,6 @@ class CameraMotionSource(
 
     private companion object {
         const val TAG = "CameraMotion"
-        const val FRAME_INTERVAL_MS = 333L
+        const val FRAME_INTERVAL_MS = 300L
     }
 }

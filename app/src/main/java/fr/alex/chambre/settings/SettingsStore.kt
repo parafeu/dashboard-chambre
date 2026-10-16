@@ -13,7 +13,8 @@ data class Settings(
     val url: String = "http://homeassistant.local:8123",
     val token: String = "",
     val sleepDelaySec: Int = 60,
-    val sensitivity: Float = 0.02f,
+    /** Minimum moving-region size, as a fraction of the image (0.005–0.10). */
+    val sensitivity: Float = 0.03f,
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */

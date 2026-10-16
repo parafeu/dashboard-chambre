@@ -32,7 +32,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // armeabi-v7a = the Galaxy Tab S2 (32-bit userspace), x86_64 = the emulator
+            ndk { abiFilters += listOf("armeabi-v7a", "x86_64") }
+        }
         release {
+            ndk { abiFilters += "armeabi-v7a" }
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
@@ -70,6 +75,7 @@ dependencies {
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
     implementation(libs.datastore.preferences)
+    implementation(libs.opencv)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

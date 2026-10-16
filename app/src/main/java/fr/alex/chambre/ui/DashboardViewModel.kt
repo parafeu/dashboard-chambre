@@ -10,6 +10,7 @@ import fr.alex.chambre.ha.HaRepository
 import fr.alex.chambre.presence.PresenceController
 import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.SettingsStore
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -43,6 +44,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope,
         sleepDelayMs = { (settings.value?.sleepDelaySec ?: Settings().sleepDelaySec) * 1_000L },
     ).also { it.start() }
+
+    /** True while the settings screen is shown (enables the camera preview). */
+    val settingsOpen = MutableStateFlow(false)
 
     fun saveSettings(s: Settings) {
         viewModelScope.launch {
