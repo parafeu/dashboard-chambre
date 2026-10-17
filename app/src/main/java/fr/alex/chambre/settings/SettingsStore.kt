@@ -37,13 +37,16 @@ fun normalizeUrl(url: String): String {
     return if (u.isEmpty() || "://" in u) u else "http://$u"
 }
 
+/** HA tokens never contain whitespace: a line break pasted inside one would break the Authorization header. */
+fun cleanToken(token: String): String = token.filterNot { it.isWhitespace() }
+
 class SettingsStore(private val dataStore: DataStore<Preferences>) : RegistrationStore {
 
     val settings: Flow<Settings> = dataStore.data.map { p ->
         val d = Settings()
         Settings(
             url = p[URL] ?: d.url,
-            token = p[TOKEN] ?: d.token,
+            token = cleanToken(p[TOKEN] ?: d.token),
             sleepDelaySec = p[SLEEP] ?: d.sleepDelaySec,
             sensitivity = p[SENSITIVITY] ?: d.sensitivity,
             room = Room.entries.firstOrNull { it.name == p[ROOM] } ?: d.room,
@@ -56,7 +59,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
     suspend fun save(s: Settings) {
         dataStore.edit { p ->
             p[URL] = normalizeUrl(s.url)
-            p[TOKEN] = s.token.trim()
+            p[TOKEN] = cleanToken(s.token)
             p[SLEEP] = s.sleepDelaySec
             p[SENSITIVITY] = s.sensitivity
             p[ROOM] = s.room.name
