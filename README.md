@@ -4,7 +4,11 @@ App Android native (Jetpack Compose, Material 3) qui remplace Fully Kiosk + Love
 Galaxy Tab S2 (LineageOS, Android 11) de la chambre : contrôle lumière / volet / scènes,
 heure et météo, veille de l'écran pilotée par la caméra frontale.
 
-Spec : `docs/superpowers/specs/2026-10-16-dashboard-chambre-design.md`
+La même app sert aussi de **dashboard global du salon** (Réglages → « Pièce de cette tablette » → Salon) :
+volet et lumières du salon, onglets Cuisine et Chambre, et annonces vocales de l'agenda.
+
+Specs : `docs/superpowers/specs/2026-10-16-dashboard-chambre-design.md`,
+`docs/superpowers/specs/2026-10-17-salon-design.md`
 
 ## Compiler
 
@@ -55,9 +59,29 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
   retour automatique aux heures après 30 s.
 - **Par défaut** : remet la lumière à 70 % · 2700 K, comme l'appui long des télécommandes.
 
+## Mode salon
+
+- **Onglets** (rail à gauche) : Salon (par défaut), Cuisine (volet, minuteurs 5/10 min, liste de courses,
+  prise de la tablette cuisine), Chambre (identique au dashboard de la chambre). Retour automatique sur
+  Salon après 2 min sans toucher.
+- **Annonces vocales** (synthèse vocale Android, voix française) :
+  - calendrier **Travail** (`calendar.travail`) : « Réunion dans 5 minutes : <titre> », une seule fois,
+    avec un bandeau en haut de l'écran ;
+  - calendrier **Alertes** (`calendar.alertes`, ex. « Litière » récurrente) : à l'heure de l'événement
+    (9 h pour un événement « journée »), écran plein « C'est fait » ; la voix répète toutes les 5 min
+    pendant 1 h, l'écran reste jusqu'à confirmation ;
+  - fin d'un minuteur de cuisine : « Minuteur N terminé », répété toutes les 30 s (5 fois) jusqu'à OK.
+- Une annonce réveille l'écran. Les entités de calendrier se changent dans les Réglages ;
+  « Tester la voix » vérifie le haut-parleur.
+
+Prérequis Home Assistant : intégration **Google Calendar** connectée, avec un agenda « Travail » et un
+agenda « Alertes » (les entités doivent correspondre aux Réglages). Si la voix ne sort pas, installer
+« Services vocaux Google » et le pack de voix français sur la tablette.
+
 ## Batterie dans Home Assistant
 
-L'app s'enregistre via l'intégration **Mobile App** (appareil « Tablette chambre ») et publie :
+L'app s'enregistre via l'intégration **Mobile App** (appareil « Tablette chambre », ou « Tablette salon »
+en mode salon, avec des entités `…tablette_salon_…`) et publie :
 `sensor.tablette_chambre_batterie`, `binary_sensor.tablette_chambre_en_charge`,
 `sensor.tablette_chambre_temperature_batterie` (immédiatement au (dé)branchement, sinon au plus toutes les
 5 min, et toutes les 30 min dans tous les cas).
