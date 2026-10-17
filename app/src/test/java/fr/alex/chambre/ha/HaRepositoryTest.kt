@@ -193,4 +193,13 @@ class HaRepositoryTest {
         withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
         Unit
     }
+
+    @Test
+    fun subscribes_the_entities_from_config() = runBlocking {
+        val fake = FakeHa().also(::enqueue)
+        HaRepository(scope, client, flowOf(HaConfig(server.url("/").toString().trimEnd('/'), "secret", listOf("light.a", "cover.b"))), listOf(10))
+        fake.next() // auth
+        val sub = fake.next()
+        assertEquals(listOf("light.a", "cover.b"), sub["entity_ids"]!!.jsonArray.map { it.jsonPrimitive.content })
+    }
 }

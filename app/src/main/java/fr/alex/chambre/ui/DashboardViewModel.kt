@@ -12,6 +12,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.alex.chambre.ha.HaConfig
+import fr.alex.chambre.ha.entitiesFor
+import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ha.HaRepository
 import fr.alex.chambre.presence.PresenceController
 import fr.alex.chambre.settings.Settings
@@ -41,7 +43,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val ha = HaRepository(
         viewModelScope,
         client,
-        settings.filterNotNull().map { HaConfig(it.url, it.token) }.distinctUntilChanged(),
+        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room, it.workCalendar, it.alertsCalendar), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
     )
 
     val controller = DashboardController(viewModelScope, ha)
@@ -56,7 +58,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val batteryReporter = BatteryReporter(
         viewModelScope,
         battery.state,
-        settings.filterNotNull().map { HaConfig(it.url, it.token) }.distinctUntilChanged(),
+        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room, it.workCalendar, it.alertsCalendar), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
         MobileAppClient(client),
         store,
         deviceInfo = { id ->

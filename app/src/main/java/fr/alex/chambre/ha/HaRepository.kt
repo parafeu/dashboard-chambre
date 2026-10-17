@@ -21,7 +21,13 @@ import java.util.concurrent.ConcurrentHashMap
 
 enum class ConnState { CONNECTING, CONNECTED, OFFLINE, AUTH_FAILED }
 
-data class HaConfig(val url: String, val token: String)
+data class HaConfig(
+    val url: String,
+    val token: String,
+    val entities: List<String> = Entities.ALL,
+    /** Also subscribe to HA's timer.finished events (living-room announcements). */
+    val timerEvents: Boolean = false,
+)
 
 /** What the UI needs from Home Assistant. */
 interface HaApi {
@@ -108,7 +114,7 @@ class HaRepository(
                     Incoming.AuthRequired -> c.send(HaProtocol.auth(cfg.token))
                     Incoming.AuthOk -> {
                         subId = c.nextId()
-                        c.send(HaProtocol.subscribeEntities(subId, Entities.ALL))
+                        c.send(HaProtocol.subscribeEntities(subId, cfg.entities))
                         forecastId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(forecastId, Entities.WEATHER))
                         dailyId = c.nextId()
