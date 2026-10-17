@@ -2,8 +2,6 @@ package fr.alex.chambre.presence
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.hardware.camera2.CaptureRequest
@@ -20,6 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import fr.alex.chambre.settings.CameraApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,8 +29,8 @@ import java.util.concurrent.Executors
 
 /**
  * Watches the front camera (~3 fps) and calls [onMotion] when [MotionDecider] sees real motion.
- * While [previewEnabled] is true, publishes an annotated preview on [preview]. Uses CameraX, and falls
- * back to Camera1 ([LegacyCamera]) when CameraX delivers no frame (see [CameraWatchdog]).
+ * While [previewEnabled] is true, publishes an annotated preview on [preview]. Opens nothing until
+ * [setApi] says which camera API to use: CameraX, or Camera1 ([LegacyCamera]) for old HALs CameraX cannot open.
  */
 @androidx.annotation.OptIn(markerClass = [ExperimentalCamera2Interop::class])
 class CameraMotionSource(
@@ -48,9 +47,9 @@ class CameraMotionSource(
     private var lastFrameAt = 0L
     private var relearn = true
     private var frames = 0
-    private val watchdog = CameraWatchdog(SystemClock::elapsedRealtime)
-    private val main = Handler(Looper.getMainLooper())
     private var legacy: LegacyCamera? = null
+    private var api: CameraApi? = null
+    private var ready = false
 
     @Volatile
     private var blankRequested = false
@@ -76,43 +75,40 @@ class CameraMotionSource(
                     Log.w(TAG, "No front camera: sleep on touch only")
                     return@addListener
                 }
-                bind(p)
+                ready = true
                 lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
-                main.postDelayed(watch, WATCH_INTERVAL_MS)
+                applyApi()
             } catch (e: Exception) {
                 Log.w(TAG, "Camera unavailable: sleep on touch only", e)
             }
         }, ContextCompat.getMainExecutor(context))
     }
 
-    /** Acts on a camera that delivers no frames (see [CameraWatchdog]); only while the app is visible. */
-    private val watch: Runnable = object : Runnable {
-        override fun run() {
-            val p = provider ?: return
-            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                watchdog.onBound() // camera closed by the lifecycle: silence is expected
-            } else {
-                when (watchdog.check()) {
-                    CameraWatchdog.Action.NONE -> Unit
-                    CameraWatchdog.Action.FALLBACK_TO_CAMERA1 -> {
-                        Log.w(TAG, "CameraX delivered no frame: falling back to Camera1")
-                        p.unbindAll() // frees the device if CameraX still holds it
-                        openLegacy()
-                    }
-                    CameraWatchdog.Action.RESTART -> {
-                        Log.w(TAG, "Camera1 delivered no frame: reopening it")
-                        openLegacy()
-                    }
-                }
-            }
-            main.postDelayed(this, WATCH_INTERVAL_MS)
+    /** Selects the camera API (main thread); switching closes one and opens the other. */
+    fun setApi(value: CameraApi) {
+        if (value == api) return
+        api = value
+        if (ready) applyApi()
+    }
+
+    private fun applyApi() {
+        val p = provider ?: return
+        val a = api ?: return
+        legacy?.close()
+        legacy = null
+        p.unbindAll()
+        blankRequested = true // a new source: relearn the background
+        Log.i(TAG, "Motion detection with $a")
+        when (a) {
+            CameraApi.CAMERAX -> bind(p)
+            CameraApi.CAMERA1 -> if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) openLegacy()
         }
     }
 
     /** Camera1 does not follow the lifecycle by itself: close it when the app stops, reopen it after. */
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) {
-            if (watchdog.backend == CameraWatchdog.Backend.CAMERA1) openLegacy()
+            if (api == CameraApi.CAMERA1 && legacy == null) openLegacy()
         }
 
         override fun onStop(owner: LifecycleOwner) {
@@ -123,7 +119,6 @@ class CameraMotionSource(
 
     private fun openLegacy() {
         legacy?.close()
-        watchdog.onBound()
         legacy = LegacyCamera(::analyzeFrame).also { it.open() }
     }
 
@@ -142,8 +137,6 @@ class CameraMotionSource(
             .setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(CAPTURE_FPS, CAPTURE_FPS))
         val analysis = builder.build()
         analysis.setAnalyzer(executor) { image -> image.use { analyze(it) } }
-        p.unbindAll()
-        watchdog.onBound()
         p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, analysis)
     }
 
@@ -152,10 +145,9 @@ class CameraMotionSource(
         analyzeFrame(plane.buffer, image.width, image.height, plane.rowStride)
     }
 
-    /** One luminance frame from either backend (they never run together, the lock covers a switch). */
+    /** One luminance frame from either API (they never run together; the lock covers a switch). */
     @Synchronized
     private fun analyzeFrame(y: ByteBuffer, width: Int, height: Int, rowStride: Int) {
-        watchdog.onFrame()
         val now = SystemClock.elapsedRealtime()
         if (now - lastFrameAt < FRAME_INTERVAL_MS) return
         lastFrameAt = now
@@ -181,7 +173,6 @@ class CameraMotionSource(
     }
 
     fun stop() {
-        main.removeCallbacks(watch)
         lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
         legacy?.close()
         legacy = null
@@ -193,6 +184,5 @@ class CameraMotionSource(
         const val TAG = "CameraMotion"
         const val FRAME_INTERVAL_MS = 300L
         const val CAPTURE_FPS = 15
-        const val WATCH_INTERVAL_MS = 5_000L
     }
 }

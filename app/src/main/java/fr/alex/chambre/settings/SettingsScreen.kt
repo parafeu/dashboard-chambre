@@ -107,6 +107,7 @@ fun SettingsScreen(
     var token by remember(initial) { mutableStateOf(initial.token) }
     var delayIdx by remember(initial) { mutableIntStateOf(nearestStep(initial.sleepDelaySec)) }
     var minArea by remember(initial) { mutableFloatStateOf(initial.sensitivity) }
+    var cameraApi by remember(initial) { mutableStateOf(initial.cameraApi) }
     var room by remember(initial) { mutableStateOf(initial.room) }
     val deviceSlug = if (initial.room == Room.SALON) "salon" else "chambre"
     var workCal by remember(initial) { mutableStateOf(initial.workCalendar) }
@@ -210,13 +211,29 @@ fun SettingsScreen(
                             "Plus petit = réveil plus facile. Les changements de lumière (plus de 60 % de l'image d'un coup) sont ignorés.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("API caméra", style = MaterialTheme.typography.titleMedium)
+                            SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+                                CameraApi.entries.forEachIndexed { i, a ->
+                                    SegmentedButton(
+                                        selected = cameraApi == a,
+                                        onClick = { cameraApi = a },
+                                        shape = SegmentedButtonDefaults.itemShape(i, CameraApi.entries.size),
+                                    ) { Text(if (a == CameraApi.CAMERAX) "CameraX" else "Camera1") }
+                                }
+                            }
+                        }
+                        Text(
+                            "Camera1 : pour les tablettes dont l'aperçu reste indisponible avec CameraX.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (canClose) TextButton(onClick = onClose) { Text("Annuler") }
                         Button(onClick = {
                             onSave(
                                 Settings(
-                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea,
+                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi,
                                     room = room, workCalendar = workCal, alertsCalendar = alertsCal,
                                 ),
                             )

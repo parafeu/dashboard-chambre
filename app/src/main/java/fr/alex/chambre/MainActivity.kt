@@ -40,6 +40,9 @@ import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ui.DashboardViewModel
 import fr.alex.chambre.ui.SleepOverlay
 import fr.alex.chambre.ui.theme.ChambreTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -93,6 +96,8 @@ class MainActivity : ComponentActivity() {
         ).also { cam ->
             cam.start()
             lifecycleScope.launch { cam.preview.collect { vm.cameraPreview.value = it } }
+            // Nothing is opened before the saved choice is known (CameraX can jam some old HALs).
+            lifecycleScope.launch { vm.settings.filterNotNull().map { it.cameraApi }.distinctUntilChanged().collect(cam::setApi) }
         }
     }
 

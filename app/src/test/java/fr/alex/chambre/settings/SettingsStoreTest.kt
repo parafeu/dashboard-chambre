@@ -83,6 +83,21 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun camera_api_defaults_to_camerax_and_round_trips() = runBlocking {
+        val s = store()
+        assertEquals(CameraApi.CAMERAX, s.settings.first().cameraApi)
+        s.save(Settings(token = "t", cameraApi = CameraApi.CAMERA1))
+        assertEquals(CameraApi.CAMERA1, s.settings.first().cameraApi)
+    }
+
+    @Test
+    fun unknown_camera_api_falls_back_to_camerax() = runBlocking {
+        val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
+        ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("camera_api")] = "CAMERA3" }
+        assertEquals(CameraApi.CAMERAX, SettingsStore(ds).settings.first().cameraApi)
+    }
+
+    @Test
     fun unknown_room_falls_back_to_chambre() = runBlocking {
         val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
         ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("room")] = "GARAGE" }
