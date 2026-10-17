@@ -27,7 +27,7 @@ class SettingsStoreTest {
     @Test
     fun defaults() = runBlocking {
         assertEquals(
-            Settings(url = "http://homeassistant.local:8123", token = "", sleepDelaySec = 60, sensitivity = 0.03f, room = Room.CHAMBRE, workCalendar = "calendar.travail", alertsCalendar = "calendar.alertes"),
+            Settings(url = "http://homeassistant.local:8123", token = "", sleepDelaySec = 60, sensitivity = 0.03f, room = Room.CHAMBRE, workCalendar = "", alertsCalendar = ""),
             store().settings.first(),
         )
     }
@@ -77,7 +77,7 @@ class SettingsStoreTest {
     @Test
     fun salon_room_and_calendars_round_trip() = runBlocking {
         val s = store()
-        val saved = Settings(url = "http://ha:8123", token = "t", room = Room.SALON, workCalendar = "calendar.boulot", alertsCalendar = "calendar.alertes_maison")
+        val saved = Settings(url = "http://ha:8123", token = "t", room = Room.SALON, workCalendar = "11", alertsCalendar = "12")
         s.save(saved)
         assertEquals(saved, s.settings.first())
     }

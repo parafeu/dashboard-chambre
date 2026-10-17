@@ -217,20 +217,4 @@ class HaRepositoryTest {
         fake.socket.send("""{"id":$id,"type":"event","event":{"event_type":"timer.finished","data":{"entity_id":"timer.minuteur_2"}}}""")
         assertEquals("timer.minuteur_2", got.await().data["entity_id"]!!.jsonPrimitive.content)
     }
-
-    @Test
-    fun call_for_response_returns_response_or_null() = runBlocking {
-        val fake = FakeHa().also(::enqueue)
-        val r = repo()
-        fake.handshake()
-        withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
-        val ok = async(Dispatchers.IO) { r.callForResponse("calendar", "get_events", "calendar.travail") }
-        val id1 = fake.next()["id"]!!.jsonPrimitive.int
-        fake.socket.send("""{"id":$id1,"type":"result","success":true,"result":{"response":{"calendar.travail":{"events":[]}}}}""")
-        assertTrue(withTimeout(5_000) { ok.await() }!!.containsKey("calendar.travail"))
-        val ko = async(Dispatchers.IO) { r.callForResponse("calendar", "get_events", "calendar.nope") }
-        val id2 = fake.next()["id"]!!.jsonPrimitive.int
-        fake.socket.send("""{"id":$id2,"type":"result","success":false,"error":{"code":"x","message":"Unknown entity"}}""")
-        assertEquals(null, withTimeout(5_000) { ko.await() })
-    }
 }

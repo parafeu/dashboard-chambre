@@ -118,23 +118,6 @@ object HaProtocol {
         put("service_data", data)
     }.toString()
 
-    /** Same as [callService] but asks HA to return the service's response (e.g. calendar.get_events). */
-    fun callServiceWithResponse(
-        id: Int,
-        domain: String,
-        service: String,
-        entityId: String,
-        data: JsonObject = JsonObject(emptyMap()),
-    ): String = buildJsonObject {
-        put("id", id)
-        put("type", "call_service")
-        put("domain", domain)
-        put("service", service)
-        putJsonObject("target") { put("entity_id", entityId) }
-        put("service_data", data)
-        put("return_response", true)
-    }.toString()
-
     fun subscribeEvents(id: Int, eventType: String): String = buildJsonObject {
         put("id", id)
         put("type", "subscribe_events")

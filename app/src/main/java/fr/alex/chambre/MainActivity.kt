@@ -7,11 +7,13 @@ import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -150,6 +152,9 @@ private fun App(vm: DashboardViewModel) {
             val report by vm.batteryReporter.status.collectAsStateWithLifecycle()
             val preview by vm.cameraPreview.collectAsStateWithLifecycle()
             val calendarError by vm.announcements.error.collectAsStateWithLifecycle()
+            val calendars by vm.deviceCalendars.collectAsStateWithLifecycle()
+            val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refreshCalendars() }
+            LaunchedEffect(Unit) { vm.refreshCalendars() }
             SettingsScreen(
                 initial = s,
                 conn = conn,
@@ -163,6 +168,8 @@ private fun App(vm: DashboardViewModel) {
                 onClose = { settingsOpen = false },
                 calendarError = calendarError,
                 onTestVoice = vm::testVoice,
+                calendars = calendars,
+                onAllowCalendars = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
             )
         } else {
             if (s.room == Room.SALON) {

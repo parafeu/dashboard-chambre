@@ -65,18 +65,24 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
   prise de la tablette cuisine), Chambre (identique au dashboard de la chambre). Retour automatique sur
   Salon après 2 min sans toucher.
 - **Annonces vocales** (synthèse vocale Android, voix française) :
-  - calendrier **Travail** (`calendar.travail`) : « Réunion dans 5 minutes : <titre> », une seule fois,
+  - agenda **Travail** : « Réunion dans 5 minutes : <titre> », une seule fois,
     avec un bandeau en haut de l'écran ;
-  - calendrier **Alertes** (`calendar.alertes`, ex. « Litière » récurrente) : à l'heure de l'événement
+  - agenda **Alertes** (ex. « Litière » récurrente) : à l'heure de l'événement
     (9 h pour un événement « journée »), écran plein « C'est fait » ; la voix répète toutes les 5 min
     pendant 1 h, l'écran reste jusqu'à confirmation ;
   - fin d'un minuteur de cuisine : « Minuteur N terminé », répété toutes les 30 s (5 fois) jusqu'à OK.
-- Une annonce réveille l'écran. Les entités de calendrier se changent dans les Réglages ;
-  « Tester la voix » vérifie le haut-parleur.
+- Une annonce réveille l'écran. « Tester la voix » (Réglages) vérifie le haut-parleur.
 
-Prérequis Home Assistant : intégration **Google Calendar** connectée, avec un agenda « Travail » et un
-agenda « Alertes » (les entités doivent correspondre aux Réglages). Si la voix ne sort pas, installer
-« Services vocaux Google » et le pack de voix français sur la tablette.
+Les agendas ne passent pas par Home Assistant : l'app lit ceux **synchronisés sur la tablette**
+(relus chaque minute, même sans HA).
+
+1. Synchroniser Google Agenda sur la tablette : compte Google dans les paramètres Android si la tablette a
+   les services Google, sinon l'app **DAVx5** (F-Droid) → connexion avec Google → cocher les agendas.
+2. Dans l'app : Réglages → Pièce : Salon → **Autoriser l'accès aux agendas**, puis choisir
+   l'agenda Travail et l'agenda Alertes dans les listes → Enregistrer.
+
+Si la voix ne sort pas, installer « Services vocaux Google » (ou RHVoice) et une voix française ;
+le volume des annonces suit le volume multimédia.
 
 ## Batterie dans Home Assistant
 

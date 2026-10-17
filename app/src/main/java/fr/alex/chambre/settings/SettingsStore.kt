@@ -22,8 +22,9 @@ data class Settings(
     /** Minimum moving-region size, as a fraction of the image (0.005–0.10). */
     val sensitivity: Float = 0.03f,
     val room: Room = Room.CHAMBRE,
-    val workCalendar: String = "calendar.travail",
-    val alertsCalendar: String = "calendar.alertes",
+    /** Android calendar ids (see AndroidCalendarSource); blank until chosen in the settings. */
+    val workCalendar: String = "",
+    val alertsCalendar: String = "",
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */

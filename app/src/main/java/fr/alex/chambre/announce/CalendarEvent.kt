@@ -1,14 +1,13 @@
 package fr.alex.chambre.announce
 
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import java.time.Instant
-import java.time.LocalDate
-import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 
-/** One event read from calendar.get_events. HA gives no uid: calendar + title + start identify it. */
+/**
+ * One occurrence read from the tablet's calendars. [calendar] is the Android calendar id;
+ * calendar + title + start identify an occurrence (the same for every refresh).
+ */
 data class CalendarEvent(
     val calendar: String,
     val title: String,
@@ -16,21 +15,15 @@ data class CalendarEvent(
     val allDay: Boolean,
 ) {
     val key: String get() = "$calendar|$title|$start"
+
+    /** All-day events only count on their own date (the read window starts one hour back). */
+    fun isToday(now: Instant, zone: ZoneId): Boolean =
+        !allDay || start.atZone(zone).toLocalDate() == now.atZone(zone).toLocalDate()
 }
 
-/** Parses a calendar.get_events response (`{"calendar.x": {"events": [...]}}`) for [calendar]. */
-fun parseCalendarEvents(response: JsonObject, calendar: String, zone: ZoneId): List<CalendarEvent> {
-    val events = ((response[calendar] as? JsonObject)?.get("events") as? JsonArray) ?: return emptyList()
-    return events.mapNotNull { el ->
-        val o = el as? JsonObject ?: return@mapNotNull null
-        val raw = (o["start"] as? JsonPrimitive)?.content ?: return@mapNotNull null
-        val title = (o["summary"] as? JsonPrimitive)?.content ?: ""
-        if (raw.length == 10) {
-            val day = runCatching { LocalDate.parse(raw) }.getOrNull() ?: return@mapNotNull null
-            CalendarEvent(calendar, title, day.atStartOfDay(zone).toInstant(), allDay = true)
-        } else {
-            val t = runCatching { OffsetDateTime.parse(raw).toInstant() }.getOrNull() ?: return@mapNotNull null
-            CalendarEvent(calendar, title, t, allDay = false)
-        }
-    }
+/** Builds an event from a CalendarContract.Instances row; Android stores all-day events at 00:00 UTC of their date. */
+fun instanceEvent(calendar: String, title: String?, beginMillis: Long, allDay: Boolean, zone: ZoneId): CalendarEvent {
+    val begin = Instant.ofEpochMilli(beginMillis)
+    val start = if (allDay) begin.atOffset(ZoneOffset.UTC).toLocalDate().atStartOfDay(zone).toInstant() else begin
+    return CalendarEvent(calendar, title.orEmpty(), start, allDay)
 }

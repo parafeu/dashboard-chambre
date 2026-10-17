@@ -1,11 +1,13 @@
 package fr.alex.chambre.announce
 
-import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.HaApi
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.settings.Settings
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +20,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.JsonObject
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -36,12 +39,13 @@ interface Speaker {
 }
 
 /**
- * Living-room announcements: reads the work and alerts calendars every few minutes, listens for
- * finished timers, runs [AnnouncementEngine] every [tickMs] and speaks what it decides.
+ * Living-room announcements: reads the tablet’s work and alerts calendars every minute, listens for
+ * finished kitchen timers (Home Assistant), runs [AnnouncementEngine] every [tickMs] and speaks what it decides.
  */
 class AnnouncementController(
     private val scope: CoroutineScope,
     private val api: HaApi,
+    private val source: CalendarSource,
     settings: Flow<Settings>,
     private val store: DoneStore,
     private val speaker: Speaker,
@@ -49,7 +53,8 @@ class AnnouncementController(
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val wake: () -> Unit = {},
     private val tickMs: Long = 5_000,
-    private val refreshMs: Long = 5 * 60_000,
+    private val refreshMs: Long = 60_000,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val empty = Tick(emptyList(), null, emptyList())
     private val _state = MutableStateFlow(empty)
@@ -64,6 +69,7 @@ class AnnouncementController(
     val upcoming: StateFlow<List<CalendarEvent>> = _upcoming.asStateFlow()
 
     private val lock = Mutex()
+    private val poke = Channel<Unit>(Channel.CONFLATED)
     private var engine: AnnouncementEngine? = null
     private val doneCache = HashSet<String>()
 
@@ -101,12 +107,10 @@ class AnnouncementController(
             }
         }
         launch {
-            // Read the calendars as soon as HA is connected (again), then every refreshMs.
-            api.conn.map { it == ConnState.CONNECTED }.distinctUntilChanged().collectLatest { connected ->
-                while (connected) {
-                    refresh(e, work, alerts)
-                    delay(refreshMs)
-                }
+            // The tablet's calendar database is local: read it every refreshMs, with or without HA.
+            while (true) {
+                refresh(e, work, alerts)
+                withTimeoutOrNull(refreshMs) { poke.receive() }
             }
         }
         while (true) {
@@ -116,25 +120,23 @@ class AnnouncementController(
     }
 
     private suspend fun refresh(e: AnnouncementEngine, work: String, alerts: String) {
-        val t = now()
-        val window = JsonObject(
-            mapOf(
-                "start_date_time" to JsonPrimitive(t.minusSeconds(3_600).atZone(zone).toOffsetDateTime().toString()),
-                "end_date_time" to JsonPrimitive(t.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toOffsetDateTime().toString()),
-            ),
-        )
-        val missing = mutableListOf<String>()
-        val events = listOf(work, alerts).flatMap { cal ->
-            val r = api.callForResponse("calendar", "get_events", cal, window)
-            if (r == null) {
-                missing += cal
-                emptyList()
-            } else {
-                parseCalendarEvents(r, cal, zone)
-            }
+        val chosen = listOf("Travail" to work, "Alertes" to alerts)
+        val unchosen = chosen.filter { it.second.isBlank() }.map { it.first }
+        if (unchosen.isNotEmpty()) {
+            _error.value = "Choisir " + (if (unchosen.size == 2) "les agendas Travail et Alertes" else "l'agenda " + unchosen.single())
+            return
         }
-        _error.value = if (missing.isEmpty()) null else "Calendrier illisible : " + missing.joinToString(", ")
-        if (missing.size < 2) {
+        val t = now()
+        val from = t.minusSeconds(3_600) // late alerts: shown up to one hour after their start
+        val to = t.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
+        val reads = withContext(io) { chosen.map { (name, id) -> name to source.read(id, from, to) } }
+        val events = reads.flatMap { (_, r) -> (r as? CalendarRead.Events)?.events.orEmpty() }.filter { it.isToday(t, zone) }
+        _error.value = when {
+            reads.any { it.second is CalendarRead.NoPermission } -> "Accès aux agendas non autorisé"
+            else -> reads.filter { it.second is CalendarRead.NotFound }.map { it.first }.takeIf { it.isNotEmpty() }
+                ?.let { names -> names.joinToString(" et ", prefix = if (names.size == 1) "Agenda " else "Agendas ") + " introuvable" + (if (names.size == 1) "" else "s") + " sur la tablette" }
+        }
+        if (reads.any { it.second is CalendarRead.Events }) {
             lock.withLock { e.setEvents(events) }
             _upcoming.value = events.filter { it.allDay || !it.start.isBefore(t) }.sortedBy { it.start }
         }
@@ -155,6 +157,11 @@ class AnnouncementController(
             t.speak.forEach { speaker.say(speechFor(it)) }
         }
         _state.value = t
+    }
+
+    /** Reads the calendars again now (e.g. right after the calendar permission is granted). */
+    fun refreshNow() {
+        poke.trySend(Unit)
     }
 
     /** « C'est fait » / OK / ✕: confirmed alerts are remembered across restarts. */

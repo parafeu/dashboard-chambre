@@ -163,22 +163,6 @@ class HaMessagesTest {
     }
 
     @Test
-    fun builds_call_service_with_response() {
-        val data = buildJsonObject { put("start_date_time", "2026-10-17T00:00:00+02:00") }
-        val json = Json.parseToJsonElement(HaProtocol.callServiceWithResponse(9, "calendar", "get_events", "calendar.travail", data)).jsonObject
-        assertEquals(JsonPrimitive(true), json["return_response"])
-        assertEquals(JsonPrimitive("get_events"), json["service"])
-        assertEquals("calendar.travail", json["target"]!!.jsonObject["entity_id"]!!.jsonPrimitive.content)
-    }
-
-    @Test
-    fun parses_result_with_response() {
-        val r = HaProtocol.parse("""{"id":9,"type":"result","success":true,"result":{"context":{"id":"x"},"response":{"calendar.travail":{"events":[]}}}}""") as Incoming.Result
-        assertTrue(r.success)
-        assertTrue(r.result!!.jsonObject["response"]!!.jsonObject.containsKey("calendar.travail"))
-    }
-
-    @Test
     fun parses_ha_event() {
         val e = HaProtocol.parse("""{"id":4,"type":"event","event":{"event_type":"timer.finished","data":{"entity_id":"timer.minuteur_1"},"origin":"LOCAL","time_fired":"2026-10-17T10:00:00+00:00"}}""") as Incoming.HaEvent
         assertEquals(4, e.id)

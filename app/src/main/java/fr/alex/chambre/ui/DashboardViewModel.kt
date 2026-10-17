@@ -5,7 +5,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
 import fr.alex.chambre.announce.AnnouncementController
+import fr.alex.chambre.announce.AndroidCalendarSource
 import fr.alex.chambre.announce.AnnouncementStore
+import fr.alex.chambre.announce.DeviceCalendar
 import fr.alex.chambre.announce.TtsSpeaker
 import fr.alex.chambre.battery.BatteryMonitor
 import fr.alex.chambre.battery.BatteryReporter
@@ -22,14 +24,17 @@ import fr.alex.chambre.ha.HaRepository
 import fr.alex.chambre.presence.PresenceController
 import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.SettingsStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -91,10 +96,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     private val speaker = TtsSpeaker(app)
 
+    private val calendarSource = AndroidCalendarSource(app)
+
     /** Living-room announcements (does nothing in bedroom mode). */
     val announcements = AnnouncementController(
         viewModelScope,
         ha,
+        calendarSource,
         settings.filterNotNull(),
         AnnouncementStore(app.dataStore),
         speaker,
@@ -102,6 +110,15 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     /** Test button in the settings. */
+    private val _deviceCalendars = MutableStateFlow<List<DeviceCalendar>?>(emptyList())
+    /** The tablet's calendars for the settings pickers; null without the calendar permission. */
+    val deviceCalendars: StateFlow<List<DeviceCalendar>?> = _deviceCalendars.asStateFlow()
+
+    fun refreshCalendars() {
+        viewModelScope.launch { _deviceCalendars.value = withContext(Dispatchers.IO) { calendarSource.calendars() } }
+        announcements.refreshNow()
+    }
+
     fun testVoice() = speaker.say("Ceci est un test de la tablette du salon.")
 
     override fun onCleared() {

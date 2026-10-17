@@ -46,14 +46,6 @@ interface HaApi {
         entityId: String,
         data: JsonObject = JsonObject(emptyMap()),
     ): Boolean
-
-    /** Calls a service that returns data; the service's `response` object, or null on any failure. */
-    suspend fun callForResponse(
-        domain: String,
-        service: String,
-        entityId: String,
-        data: JsonObject = JsonObject(emptyMap()),
-    ): JsonObject?
 }
 
 /**
@@ -179,12 +171,6 @@ class HaRepository(
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
         val result = request(reportErrors = true) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
         return result?.success == true
-    }
-
-    override suspend fun callForResponse(domain: String, service: String, entityId: String, data: JsonObject): JsonObject? {
-        val result = request(reportErrors = false) { id -> HaProtocol.callServiceWithResponse(id, domain, service, entityId, data) }
-        if (result?.success != true) return null
-        return (result.result as? JsonObject)?.get("response") as? JsonObject
     }
 
     /** Sends one request and waits for its result; null when offline or timed out. */

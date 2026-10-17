@@ -1,5 +1,11 @@
 package fr.alex.chambre.settings
 
+import fr.alex.chambre.announce.DeviceCalendar
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenuItem
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -94,6 +100,8 @@ fun SettingsScreen(
     onClose: () -> Unit,
     calendarError: String? = null,
     onTestVoice: () -> Unit = {},
+    calendars: List<DeviceCalendar>? = emptyList(),
+    onAllowCalendars: () -> Unit = {},
 ) {
     var url by remember(initial) { mutableStateOf(initial.url) }
     var token by remember(initial) { mutableStateOf(initial.token) }
@@ -150,14 +158,22 @@ fun SettingsScreen(
                                 "Annonces vocales : réunions du calendrier Travail 5 min avant, alertes du calendrier Alertes à confirmer, fin des minuteurs de cuisine.",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            OutlinedTextField(
-                                value = workCal, onValueChange = { workCal = it }, label = { Text("Calendrier Travail (entité)") },
-                                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                            )
-                            OutlinedTextField(
-                                value = alertsCal, onValueChange = { alertsCal = it }, label = { Text("Calendrier Alertes (entité)") },
-                                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                            )
+                            if (calendars == null) {
+                                Text(
+                                    "L'app lit les agendas synchronisés sur la tablette (compte Google ou DAVx5).",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Button(onClick = onAllowCalendars) { Text("Autoriser l'accès aux agendas") }
+                            } else {
+                                CalendarPicker("Agenda Travail", workCal, calendars) { workCal = it }
+                                CalendarPicker("Agenda Alertes", alertsCal, calendars) { alertsCal = it }
+                                if (calendars.isEmpty()) {
+                                    Text(
+                                        "Aucun agenda sur la tablette : ajouter un compte Google ou DAVx5 dans les paramètres Android.",
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                             if (calendarError != null) {
                                 Text(calendarError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
@@ -322,5 +338,31 @@ private fun CameraPreview(preview: Bitmap?, modifier: Modifier = Modifier) {
             Text("Aperçu · vert = mouvement", color = Color.White, style = MaterialTheme.typography.labelSmall)
         }
     }
+    }
+}
+
+/** Drop-down of the tablet's calendars; [selected] is a calendar id. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CalendarPicker(label: String, selected: String, calendars: List<DeviceCalendar>, onSelect: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val current = calendars.firstOrNull { it.id == selected }
+    ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }) {
+        OutlinedTextField(
+            value = current?.let { "${it.name} · ${it.account}" } ?: if (selected.isBlank()) "À choisir" else "Agenda introuvable",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            calendars.forEach { c ->
+                DropdownMenuItem(
+                    text = { Column { Text(c.name); Text(c.account, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                    onClick = { onSelect(c.id); open = false },
+                )
+            }
+        }
     }
 }

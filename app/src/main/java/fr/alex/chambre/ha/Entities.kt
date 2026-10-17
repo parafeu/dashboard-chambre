@@ -74,8 +74,8 @@ object Entities {
 }
 
 /**
- * Entities the tablet subscribes to, depending on its room. Calendars are read with calendar.get_events only:
- * one malformed calendar id in subscribe_entities would make HA reject the whole subscription.
+ * Entities the tablet subscribes to, depending on its room. Calendars are not HA entities here (the tablet reads its own),
+ * and one malformed id in subscribe_entities would make HA reject the whole subscription.
  */
 fun entitiesFor(room: Room): List<String> = when (room) {
     Room.CHAMBRE -> Entities.ALL
