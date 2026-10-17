@@ -23,6 +23,7 @@ data class DeviceInfo(
     val manufacturer: String,
     val model: String,
     val osVersion: String,
+    val deviceName: String = MobileAppClient.DEVICE_NAME,
 )
 
 /** A sensor as registered with the Mobile App integration (entity_category is always diagnostic). */
@@ -57,7 +58,7 @@ class MobileAppClient(private val client: OkHttpClient) : MobileAppApi {
             put("app_id", APP_ID)
             put("app_name", "Dashboard Chambre")
             put("app_version", info.appVersion)
-            put("device_name", DEVICE_NAME)
+            put("device_name", info.deviceName)
             put("manufacturer", info.manufacturer)
             put("model", info.model)
             put("os_name", "Android")

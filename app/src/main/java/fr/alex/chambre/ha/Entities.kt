@@ -44,6 +44,8 @@ object Entities {
 
     val CHAMBRE_ROOM = RoomEntities(LIGHT, COVER, HALF, colors = true)
     val SALON_ROOM = RoomEntities("light.lumieres_salon", "cover.volet_salon", null, colors = false)
+    /** The kitchen has no light on its panel; only the shutter part is used. */
+    val KITCHEN_ROOM = RoomEntities("", "cover.volet_cuisine", null, colors = false)
 
     const val SALON_TEMPERATURE = "sensor.salon_temperature"
     const val SALON_HUMIDITY = "sensor.salon_humidity"

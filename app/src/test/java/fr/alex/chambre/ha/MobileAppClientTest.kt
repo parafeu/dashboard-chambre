@@ -98,4 +98,11 @@ class MobileAppClientTest {
         assertEquals(WebhookResult.ERROR, api.updateStates(base(), "wh", emptyList()))
         assertEquals(WebhookResult.ERROR, api.updateStates("http://127.0.0.1:1", "wh", emptyList()))
     }
+
+    @Test
+    fun register_uses_the_device_name_given() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(201).setBody("""{"webhook_id":"w"}"""))
+        api.register(base(), "tok", info.copy(deviceName = "Tablette salon"))
+        assertEquals("Tablette salon", body()["device_name"]!!.jsonPrimitive.content)
+    }
 }

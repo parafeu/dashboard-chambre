@@ -14,6 +14,7 @@ import fr.alex.chambre.ha.MobileAppClient
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.HaConfig
 import fr.alex.chambre.ha.entitiesFor
 import fr.alex.chambre.settings.Room
@@ -51,6 +52,18 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val controller = DashboardController(viewModelScope, ha)
 
+    /** Living-room mode: the salon and kitchen panels drive their own entities. */
+    val salonController = DashboardController(viewModelScope, ha, Entities.SALON_ROOM)
+    val kitchenController = DashboardController(viewModelScope, ha, Entities.KITCHEN_ROOM)
+
+    fun startTimer(timer: String, minutes: Int) {
+        viewModelScope.launch { ha.call("script", "turn_on", Entities.timerStartScript(timer, minutes)) }
+    }
+
+    fun cancelTimer(timer: String) {
+        viewModelScope.launch { ha.call("timer", "cancel", timer) }
+    }
+
     val presence = PresenceController(
         viewModelScope,
         sleepDelayMs = { (settings.value?.sleepDelaySec ?: Settings().sleepDelaySec) * 1_000L },
@@ -71,6 +84,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 manufacturer = Build.MANUFACTURER,
                 model = Build.MODEL,
                 osVersion = Build.VERSION.RELEASE,
+                deviceName = if (settings.value?.room == Room.SALON) "Tablette salon" else MobileAppClient.DEVICE_NAME,
             )
         },
     )

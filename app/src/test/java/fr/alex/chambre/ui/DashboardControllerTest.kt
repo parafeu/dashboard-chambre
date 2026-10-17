@@ -157,4 +157,22 @@ class DashboardControllerTest {
         )
         assertNull(c.lastScene.value)
     }
+
+    @Test
+    fun salon_controller_targets_salon_entities() = runTest {
+        val api = FakeApi()
+        val c = DashboardController(backgroundScope, api, Entities.SALON_ROOM)
+        runCurrent()
+        c.setBrightness(40, final = true); runCurrent()
+        c.coverHalf(); runCurrent()
+        c.resetDefault(); runCurrent()
+        assertEquals(
+            listOf(
+                Call("light", "turn_on", "light.lumieres_salon", json("brightness_pct" to 40)),
+                Call("cover", "set_cover_position", "cover.volet_salon", json("position" to 50)),
+                Call("light", "turn_on", "light.lumieres_salon", json("brightness_pct" to 70, "color_temp_kelvin" to 2700, "transition" to 1)),
+            ),
+            api.calls,
+        )
+    }
 }
