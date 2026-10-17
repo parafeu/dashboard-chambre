@@ -1,6 +1,7 @@
 package fr.alex.chambre.announce
 
 import fr.alex.chambre.ha.ConnState
+import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.HaApi
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.settings.Settings
@@ -93,6 +94,7 @@ class AnnouncementController(
             api.events.collect { ev ->
                 if (ev.eventType != "timer.finished") return@collect
                 val id = (ev.data["entity_id"] as? JsonPrimitive)?.contentOrNull ?: return@collect
+                if (id !in Entities.KITCHEN_TIMERS) return@collect // other HA timers (automations) stay silent
                 val name = api.entities.value[id]?.attributes?.get("friendly_name")?.jsonPrimitive?.contentOrNull ?: id
                 lock.withLock { e.timerFinished(name, now()) }
                 tick()

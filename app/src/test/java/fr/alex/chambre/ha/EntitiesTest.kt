@@ -9,15 +9,21 @@ import org.junit.Test
 class EntitiesTest {
     @Test
     fun chambre_keeps_the_v1_list() {
-        assertEquals(Entities.ALL, entitiesFor(Room.CHAMBRE, "calendar.travail", "calendar.alertes"))
+        assertEquals(Entities.ALL, entitiesFor(Room.CHAMBRE))
     }
 
     @Test
-    fun salon_covers_every_room_and_both_calendars() {
-        val l = entitiesFor(Room.SALON, "calendar.travail", "calendar.alertes")
+    fun salon_never_subscribes_to_calendars() {
+        // A single malformed id would make HA reject the whole subscribe_entities (blank dashboard).
+        assertFalse(entitiesFor(Room.SALON).any { it.startsWith("calendar.") || it.isBlank() })
+    }
+
+    @Test
+    fun salon_covers_every_room() {
+        val l = entitiesFor(Room.SALON)
         for (e in listOf("cover.volet_salon", "light.lumieres_salon", "cover.volet_cuisine", "timer.minuteur_2",
-            "todo.liste_dachats", "switch.grillplats_plug", "sensor.salon_temperature", "calendar.alertes",
-            "calendar.travail", Entities.LIGHT, Entities.COVER, Entities.WEATHER)) {
+            "todo.liste_dachats", "switch.grillplats_plug", "sensor.salon_temperature",
+            Entities.LIGHT, Entities.COVER, Entities.WEATHER)) {
             assertTrue(e, e in l)
         }
         assertEquals(l.size, l.toSet().size)

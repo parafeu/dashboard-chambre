@@ -73,14 +73,16 @@ object Entities {
     )
 }
 
-/** Entities the tablet subscribes to, depending on its room. */
-fun entitiesFor(room: Room, workCalendar: String, alertsCalendar: String): List<String> = when (room) {
+/**
+ * Entities the tablet subscribes to, depending on its room. Calendars are read with calendar.get_events only:
+ * one malformed calendar id in subscribe_entities would make HA reject the whole subscription.
+ */
+fun entitiesFor(room: Room): List<String> = when (room) {
     Room.CHAMBRE -> Entities.ALL
     Room.SALON -> (
         Entities.ALL +
             listOf(Entities.SALON_ROOM.light, Entities.SALON_ROOM.cover, Entities.SALON_TEMPERATURE, Entities.SALON_HUMIDITY) +
             listOf(Entities.KITCHEN_COVER, Entities.SHOPPING_LIST, Entities.KITCHEN_TABLET_PLUG) + Entities.KITCHEN_TIMERS +
-            Entities.KITCHEN_TIMERS.flatMap { t -> listOf(5, 10).map { Entities.timerStartScript(t, it) } } +
-            listOf(workCalendar, alertsCalendar)
+            Entities.KITCHEN_TIMERS.flatMap { t -> listOf(5, 10).map { Entities.timerStartScript(t, it) } }
         ).distinct()
 }

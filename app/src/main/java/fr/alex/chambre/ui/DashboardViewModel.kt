@@ -47,7 +47,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val ha = HaRepository(
         viewModelScope,
         client,
-        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room, it.workCalendar, it.alertsCalendar), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
+        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
     )
 
     val controller = DashboardController(viewModelScope, ha)
@@ -74,7 +74,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val batteryReporter = BatteryReporter(
         viewModelScope,
         battery.state,
-        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room, it.workCalendar, it.alertsCalendar), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
+        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
         MobileAppClient(client),
         store,
         deviceInfo = { id ->

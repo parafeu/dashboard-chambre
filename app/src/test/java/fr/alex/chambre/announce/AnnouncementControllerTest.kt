@@ -127,6 +127,17 @@ class AnnouncementControllerTest {
     }
 
     @Test
+    fun only_kitchen_timers_are_announced() = runTest {
+        api.responses["calendar.travail"] = events("calendar.travail", "")
+        api.responses["calendar.alertes"] = events("calendar.alertes", "")
+        val c = start()
+        api.events.emit(Incoming.HaEvent(9, "timer.finished", JsonObject(mapOf("entity_id" to JsonPrimitive("timer.lave_linge")))))
+        advance(5_000)
+        assertTrue(speaker.said.isEmpty())
+        assertTrue(c.state.value.banner == null)
+    }
+
+    @Test
     fun bedroom_mode_does_nothing() = runTest { // RF5
         settings.value = Settings(token = "t", room = Room.CHAMBRE)
         val c = start()
