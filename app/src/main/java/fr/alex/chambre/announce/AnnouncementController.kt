@@ -57,6 +57,10 @@ class AnnouncementController(
     /** Why a calendar could not be read (shown in the settings), or null. */
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _upcoming = MutableStateFlow<List<CalendarEvent>>(emptyList())
+    /** Today's remaining work meetings and alerts, in order (the « Aujourd'hui » panel). */
+    val upcoming: StateFlow<List<CalendarEvent>> = _upcoming.asStateFlow()
+
     private val lock = Mutex()
     private var engine: AnnouncementEngine? = null
     private val doneCache = HashSet<String>()
@@ -70,6 +74,7 @@ class AnnouncementController(
                     lock.withLock { engine = null }
                     _state.value = empty
                     _error.value = null
+                    _upcoming.value = emptyList()
                     if (room != Room.SALON) return@collectLatest
                     run(work, alerts)
                 }
@@ -123,7 +128,10 @@ class AnnouncementController(
             }
         }
         _error.value = if (missing.isEmpty()) null else "Calendrier illisible : " + missing.joinToString(", ")
-        if (missing.size < 2) lock.withLock { e.setEvents(events) }
+        if (missing.size < 2) {
+            lock.withLock { e.setEvents(events) }
+            _upcoming.value = events.filter { it.allDay || !it.start.isBefore(t) }.sortedBy { it.start }
+        }
     }
 
     private suspend fun tick() {

@@ -25,11 +25,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,11 +92,17 @@ fun SettingsScreen(
     preview: Bitmap?,
     onSave: (Settings) -> Unit,
     onClose: () -> Unit,
+    calendarError: String? = null,
+    onTestVoice: () -> Unit = {},
 ) {
     var url by remember(initial) { mutableStateOf(initial.url) }
     var token by remember(initial) { mutableStateOf(initial.token) }
     var delayIdx by remember(initial) { mutableIntStateOf(nearestStep(initial.sleepDelaySec)) }
     var minArea by remember(initial) { mutableFloatStateOf(initial.sensitivity) }
+    var room by remember(initial) { mutableStateOf(initial.room) }
+    val deviceSlug = if (initial.room == Room.SALON) "salon" else "chambre"
+    var workCal by remember(initial) { mutableStateOf(initial.workCalendar) }
+    var alertsCal by remember(initial) { mutableStateOf(initial.alertsCalendar) }
     val canClose = initial.token.isNotBlank()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -124,6 +135,35 @@ fun SettingsScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         )
                     }
+                    Card("Pièce de cette tablette", Icons.Filled.Home) {
+                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                            Room.entries.forEachIndexed { i, r ->
+                                SegmentedButton(
+                                    selected = room == r,
+                                    onClick = { room = r },
+                                    shape = SegmentedButtonDefaults.itemShape(i, Room.entries.size),
+                                ) { Text(if (r == Room.CHAMBRE) "Chambre" else "Salon") }
+                            }
+                        }
+                        if (room == Room.SALON) {
+                            Text(
+                                "Annonces vocales : réunions du calendrier Travail 5 min avant, alertes du calendrier Alertes à confirmer, fin des minuteurs de cuisine.",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedTextField(
+                                value = workCal, onValueChange = { workCal = it }, label = { Text("Calendrier Travail (entité)") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = alertsCal, onValueChange = { alertsCal = it }, label = { Text("Calendrier Alertes (entité)") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            )
+                            if (calendarError != null) {
+                                Text(calendarError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
+                            FilledTonalButton(onClick = onTestVoice) { Text("Tester la voix") }
+                        }
+                    }
                     Card("Batterie → Home Assistant", Icons.Filled.BatteryChargingFull) {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Tile("Niveau", battery?.let { "${it.levelPct} %" } ?: "–", Modifier.weight(1f))
@@ -131,7 +171,7 @@ fun SettingsScreen(
                             Tile("Température", battery?.tempC?.let { "%.1f °C".format(it).replace('.', ',') } ?: "–", Modifier.weight(1f))
                         }
                         Text(
-                            "sensor.tablette_chambre_batterie\nbinary_sensor.tablette_chambre_en_charge\nsensor.tablette_chambre_temperature_batterie",
+                            "sensor.tablette_$deviceSlug" + "_batterie\nbinary_sensor.tablette_$deviceSlug" + "_en_charge\nsensor.tablette_$deviceSlug" + "_temperature_batterie",
                             style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -158,7 +198,12 @@ fun SettingsScreen(
                     Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (canClose) TextButton(onClick = onClose) { Text("Annuler") }
                         Button(onClick = {
-                            onSave(Settings(url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea))
+                            onSave(
+                                Settings(
+                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea,
+                                    room = room, workCalendar = workCal, alertsCalendar = alertsCal,
+                                ),
+                            )
                         }) { Text("Enregistrer") }
                     }
                 }

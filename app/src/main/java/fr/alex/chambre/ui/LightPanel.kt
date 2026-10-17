@@ -65,6 +65,11 @@ fun LightPanel(
     controller: DashboardController,
     modifier: Modifier = Modifier,
     asleep: Boolean = false,
+    /** Swatches + color wheel (bedroom bulbs); false for white-only lights. */
+    colors: Boolean = true,
+    /** Narrow column: smaller labels, buttons stacked. */
+    compact: Boolean = false,
+    title: String = "Lumière",
 ) {
     val enabled = online && light != null && !light.isUnavailable
     val isOn = light?.state == "on"
@@ -77,8 +82,8 @@ fun LightPanel(
     // The sheet lives in its own window above the sleep overlay: close it when the screen sleeps.
     LaunchedEffect(asleep) { if (asleep) sheetOpen = false }
 
-    Section("Lumière", modifier) {
-        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Section(title, modifier) {
+        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 16.dp)) {
             val shownPct = dragPct ?: pct
             VerticalSlider(
                 value = if (light == null) null else pct / 100f,
@@ -86,7 +91,8 @@ fun LightPanel(
                 onRelease = { v -> dragPct = null; controller.setBrightness((v * 100).roundToInt(), final = true) },
                 enabled = enabled,
                 icon = Icons.Filled.LightMode,
-                topLabel = if (shownPct == 0 && dragPct == null) "Éteinte" else "$shownPct %",
+                topLabel = if (shownPct == 0 && dragPct == null) (if (compact) "Off" else "Éteinte") else "$shownPct %",
+                compactLabel = compact,
                 topLabelColor = if (shownPct >= 90) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
@@ -99,13 +105,18 @@ fun LightPanel(
                 enabled = enabled && isOn,
                 icon = Icons.Filled.Thermostat,
                 iconTint = Color(0xFF4A2800),
-                topLabel = (dragK ?: k)?.let { "$it K" } ?: "Couleur",
+                topLabel = (dragK ?: k)?.let { "$it K" } ?: if (compact) "–" else "Couleur",
+                compactLabel = compact,
                 topLabelColor = Color(0xFF4A2800),
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
         }
-        LightButtonGroup(isOn = isOn, enabled = enabled, onToggle = controller::toggleLight, onDefault = controller::resetDefault)
-        Row(
+        if (compact) {
+            LightButtonsStacked(isOn = isOn, enabled = enabled, onToggle = controller::toggleLight, onDefault = controller::resetDefault)
+        } else {
+            LightButtonGroup(isOn = isOn, enabled = enabled, onToggle = controller::toggleLight, onDefault = controller::resetDefault)
+        }
+        if (colors) Row(
             Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -132,7 +143,7 @@ fun LightPanel(
         }
     }
 
-    if (sheetOpen) {
+    if (colors && sheetOpen) {
         ColorSheet(
             initial = light?.hsColor ?: (30f to 70f),
             onColor = { h, s, final -> controller.setHs(h, s, final) },
@@ -170,5 +181,23 @@ private fun LightButtonGroup(isOn: Boolean, enabled: Boolean, onToggle: () -> Un
             Spacer(Modifier.width(8.dp))
             Text("Par défaut", style = MaterialTheme.typography.titleMedium, maxLines = 1)
         }
+    }
+}
+
+/** Narrow-column version: the same two actions, stacked. */
+@Composable
+private fun LightButtonsStacked(isOn: Boolean, enabled: Boolean, onToggle: () -> Unit, onDefault: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Button(
+        onClick = onToggle,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isOn) colors.primary else colors.surfaceContainerHighest,
+            contentColor = if (isOn) colors.onPrimary else colors.onSurface,
+        ),
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+    ) { Text(if (isOn) "Allumées" else "Éteintes", style = MaterialTheme.typography.titleMedium, maxLines = 1) }
+    FilledTonalButton(onClick = onDefault, enabled = enabled, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+        Text("Par défaut", style = MaterialTheme.typography.titleSmall, maxLines = 1)
     }
 }

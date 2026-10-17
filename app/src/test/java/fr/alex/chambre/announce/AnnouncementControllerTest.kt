@@ -134,4 +134,13 @@ class AnnouncementControllerTest {
         assertTrue(speaker.said.isEmpty())
         assertNull(c.error.value)
     }
+
+    @Test
+    fun upcoming_lists_remaining_events_of_both_calendars_in_order() = runTest {
+        api.responses["calendar.travail"] = events("calendar.travail",
+            """{"start":"2026-10-17T13:00:00+02:00","summary":"Passée"},{"start":"2026-10-17T16:30:00+02:00","summary":"Revue"},{"start":"2026-10-17T14:00:00+02:00","summary":"Point"}""")
+        api.responses["calendar.alertes"] = events("calendar.alertes", """{"start":"2026-10-17T19:00:00+02:00","summary":"Litière"}""")
+        val c = start()
+        assertEquals(listOf("Point", "Revue", "Litière"), c.upcoming.value.map { it.title })
+    }
 }

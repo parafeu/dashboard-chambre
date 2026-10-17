@@ -66,6 +66,7 @@ fun VerticalSlider(
     iconTint: Color = MaterialTheme.colorScheme.onPrimary,
     topLabel: String? = null,
     topLabelColor: Color = MaterialTheme.colorScheme.onSurface,
+    compactLabel: Boolean = false,
 ) {
     var local by remember { mutableStateOf<Float?>(null) }
     var releases by remember { mutableIntStateOf(0) }
@@ -138,7 +139,7 @@ fun VerticalSlider(
             Text(
                 topLabel,
                 Modifier.align(Alignment.TopCenter).padding(top = 20.dp),
-                style = MaterialTheme.typography.titleLarge,
+                style = if (compactLabel) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
                 color = topLabelColor,
             )
         }
