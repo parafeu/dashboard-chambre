@@ -47,7 +47,8 @@ class CameraMotionSource(
     private var lastFrameAt = 0L
     private var relearn = true
     private var frames = 0
-    private var legacy: LegacyCamera? = null
+    private val legacy by lazy { LegacyCamera(::analyzeFrame) }
+    private var legacyUsed = false
     private var api: CameraApi? = null
     private var ready = false
 
@@ -94,8 +95,7 @@ class CameraMotionSource(
     private fun applyApi() {
         val p = provider ?: return
         val a = api ?: return
-        legacy?.close()
-        legacy = null
+        if (legacyUsed) legacy.close()
         p.unbindAll()
         blankRequested = true // a new source: relearn the background
         Log.i(TAG, "Motion detection with $a")
@@ -108,18 +108,17 @@ class CameraMotionSource(
     /** Camera1 does not follow the lifecycle by itself: close it when the app stops, reopen it after. */
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) {
-            if (api == CameraApi.CAMERA1 && legacy == null) openLegacy()
+            if (api == CameraApi.CAMERA1) openLegacy()
         }
 
         override fun onStop(owner: LifecycleOwner) {
-            legacy?.close()
-            legacy = null
+            if (legacyUsed) legacy.close()
         }
     }
 
     private fun openLegacy() {
-        legacy?.close()
-        legacy = LegacyCamera(::analyzeFrame).also { it.open() }
+        legacyUsed = true
+        legacy.open() // no-op when already open
     }
 
     private fun bind(p: ProcessCameraProvider) {
@@ -174,8 +173,7 @@ class CameraMotionSource(
 
     fun stop() {
         lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
-        legacy?.close()
-        legacy = null
+        if (legacyUsed) legacy.shutdown()
         provider?.unbindAll()
         executor.shutdown()
     }

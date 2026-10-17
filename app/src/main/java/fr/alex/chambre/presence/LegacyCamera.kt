@@ -11,8 +11,10 @@ import android.util.Log
 import java.nio.ByteBuffer
 
 /**
- * Front camera through the old Camera1 API, on its own thread. Delivers NV21 frames: the luminance plane
- * comes first, so [onFrame] gets (buffer, width, height, rowStride = width) like a CameraX Y plane.
+ * Front camera through the old Camera1 API. Every open/close runs in order on one thread, so they never
+ * overlap (the camera service refuses a second client while one is connecting). Delivers NV21 frames:
+ * the luminance plane comes first, so [onFrame] gets (buffer, width, height, rowStride = width) like a
+ * CameraX Y plane.
  */
 class LegacyCamera(private val onFrame: (ByteBuffer, Int, Int, Int) -> Unit) {
     private val thread = HandlerThread("LegacyCamera").apply { start() }
@@ -20,22 +22,43 @@ class LegacyCamera(private val onFrame: (ByteBuffer, Int, Int, Int) -> Unit) {
     private var camera: Camera? = null
     private var texture: SurfaceTexture? = null
 
+    /** Opens the front camera unless it is already open; retries while the camera is busy. */
     fun open() {
-        handler.post {
-            try {
-                openNow()
-            } catch (e: RuntimeException) {
-                Log.w(TAG, "Camera1 could not open the front camera", e)
-                releaseNow()
-            }
-        }
+        handler.removeCallbacks(retry)
+        handler.post { tryOpen(attempt = 1) }
     }
 
-    /** Releases the camera and its thread; this instance cannot be reopened. */
     fun close() {
+        handler.removeCallbacks(retry)
+        handler.post { releaseNow() }
+    }
+
+    /** Releases the camera and stops the thread; this instance cannot be used afterwards. */
+    fun shutdown() {
+        handler.removeCallbacks(retry)
         handler.post {
             releaseNow()
             thread.quitSafely()
+        }
+    }
+
+    private var nextAttempt = 1
+    private val retry = Runnable { tryOpen(nextAttempt) }
+
+    private fun tryOpen(attempt: Int) {
+        if (camera != null) return
+        try {
+            openNow()
+        } catch (e: RuntimeException) {
+            releaseNow()
+            if (attempt < MAX_ATTEMPTS) {
+                // Typically "too many clients" while a previous user (an old process after an update) lets go.
+                Log.w(TAG, "Camera1 busy (attempt $attempt): ${e.message}")
+                nextAttempt = attempt + 1
+                handler.postDelayed(retry, RETRY_MS)
+            } else {
+                Log.w(TAG, "Camera1 could not open the front camera", e)
+            }
         }
     }
 
@@ -92,5 +115,7 @@ class LegacyCamera(private val onFrame: (ByteBuffer, Int, Int, Int) -> Unit) {
 
     private companion object {
         const val TAG = "CameraMotion"
+        const val MAX_ATTEMPTS = 5
+        const val RETRY_MS = 2_000L
     }
 }
