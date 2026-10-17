@@ -268,14 +268,16 @@ private fun Banner(a: Announcement, onAcknowledge: (String) -> Unit) {
 
 @Composable
 private fun AlertScreen(a: Announcement.Alert, pending: Int, onAcknowledge: (String) -> Unit) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xDB0C0804))
-            // The backdrop swallows taps: the light and shutter controls underneath must not react.
-            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } },
-        contentAlignment = Alignment.Center,
-    ) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // The backdrop swallows taps so the light and shutter controls underneath do not react. It is a
+        // sibling behind the card, not its parent: a parent consuming the finger's small moves would
+        // cancel the button's click (Compose checks consumption on the Final pass).
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(Color(0xDB0C0804))
+                .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } },
+        )
         Surface(shape = RoundedCornerShape(40.dp), color = Color(0xFF2E251D), shadowElevation = 16.dp, modifier = Modifier.width(640.dp)) {
             Column(Modifier.padding(horizontal = 48.dp, vertical = 44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Box(Modifier.size(104.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(36.dp)), contentAlignment = Alignment.Center) {

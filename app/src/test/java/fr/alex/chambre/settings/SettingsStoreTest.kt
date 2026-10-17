@@ -83,6 +83,36 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun camera_api_defaults_to_camerax_and_round_trips() = runBlocking {
+        val s = store()
+        assertEquals(CameraApi.CAMERAX, s.settings.first().cameraApi)
+        s.save(Settings(token = "t", cameraApi = CameraApi.CAMERA1))
+        assertEquals(CameraApi.CAMERA1, s.settings.first().cameraApi)
+    }
+
+    @Test
+    fun unknown_camera_api_falls_back_to_camerax() = runBlocking {
+        val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
+        ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("camera_api")] = "CAMERA3" }
+        assertEquals(CameraApi.CAMERAX, SettingsStore(ds).settings.first().cameraApi)
+    }
+
+    @Test
+    fun whitespace_inside_a_pasted_token_is_dropped_on_save() = runBlocking {
+        val s = store()
+        s.save(Settings(token = " abc.def\n.ghi \r\n"))
+        assertEquals("abc.def.ghi", s.settings.first().token)
+    }
+
+    @Test
+    fun a_token_already_saved_with_a_line_break_is_read_clean() = runBlocking {
+        // Saved by v1.2.0: a line break inside the token crashed every HA request at start-up.
+        val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
+        ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("token")] = "abc.def\n.ghi" }
+        assertEquals("abc.def.ghi", SettingsStore(ds).settings.first().token)
+    }
+
+    @Test
     fun unknown_room_falls_back_to_chambre() = runBlocking {
         val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
         ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("room")] = "GARAGE" }

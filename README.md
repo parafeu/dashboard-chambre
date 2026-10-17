@@ -55,6 +55,8 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
 - **Détection de mouvement** (OpenCV, soustraction de fond MOG2) : une zone qui bouge sur au moins 2 images
   sur 3 réveille l'écran ; les changements de lumière (plus de 60 % de l'image d'un coup) et la propre
   lumière de l'écran sont ignorés. Réglage « Taille minimale d'un mouvement » (3 % par défaut).
+- **API caméra** (Réglages) : CameraX par défaut ; **Camera1** pour les tablettes dont l'aperçu reste
+  « indisponible » avec CameraX (pilote caméra ancien, ex. Galaxy Tab S2 SM-T813).
 - **Météo** : toucher le bloc météo pour passer de « Heures » (7 prochaines heures) à « Semaine » (6 jours) ;
   retour automatique aux heures après 30 s.
 - **Par défaut** : remet la lumière à 70 % · 2700 K, comme l'appui long des télécommandes.
