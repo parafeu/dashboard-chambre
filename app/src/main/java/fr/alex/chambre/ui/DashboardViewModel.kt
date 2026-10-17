@@ -4,6 +4,11 @@ import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import fr.alex.chambre.announce.AnnouncementController
+import fr.alex.chambre.announce.AndroidCalendarSource
+import fr.alex.chambre.announce.AnnouncementStore
+import fr.alex.chambre.announce.DeviceCalendar
+import fr.alex.chambre.announce.TtsSpeaker
 import fr.alex.chambre.battery.BatteryMonitor
 import fr.alex.chambre.battery.BatteryReporter
 import fr.alex.chambre.ha.DeviceInfo
@@ -11,19 +16,25 @@ import fr.alex.chambre.ha.MobileAppClient
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.HaConfig
+import fr.alex.chambre.ha.entitiesFor
+import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ha.HaRepository
 import fr.alex.chambre.presence.PresenceController
 import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.SettingsStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -41,10 +52,22 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val ha = HaRepository(
         viewModelScope,
         client,
-        settings.filterNotNull().map { HaConfig(it.url, it.token) }.distinctUntilChanged(),
+        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
     )
 
     val controller = DashboardController(viewModelScope, ha)
+
+    /** Living-room mode: the salon and kitchen panels drive their own entities. */
+    val salonController = DashboardController(viewModelScope, ha, Entities.SALON_ROOM)
+    val kitchenController = DashboardController(viewModelScope, ha, Entities.KITCHEN_ROOM)
+
+    fun startTimer(timer: String, minutes: Int) {
+        viewModelScope.launch { ha.call("script", "turn_on", Entities.timerStartScript(timer, minutes)) }
+    }
+
+    fun cancelTimer(timer: String) {
+        viewModelScope.launch { ha.call("timer", "cancel", timer) }
+    }
 
     val presence = PresenceController(
         viewModelScope,
@@ -56,7 +79,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val batteryReporter = BatteryReporter(
         viewModelScope,
         battery.state,
-        settings.filterNotNull().map { HaConfig(it.url, it.token) }.distinctUntilChanged(),
+        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
         MobileAppClient(client),
         store,
         deviceInfo = { id ->
@@ -66,11 +89,40 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 manufacturer = Build.MANUFACTURER,
                 model = Build.MODEL,
                 osVersion = Build.VERSION.RELEASE,
+                deviceName = if (settings.value?.room == Room.SALON) "Tablette salon" else MobileAppClient.DEVICE_NAME,
             )
         },
     )
 
+    private val speaker = TtsSpeaker(app)
+
+    private val calendarSource = AndroidCalendarSource(app)
+
+    /** Living-room announcements (does nothing in bedroom mode). */
+    val announcements = AnnouncementController(
+        viewModelScope,
+        ha,
+        calendarSource,
+        settings.filterNotNull(),
+        AnnouncementStore(app.dataStore),
+        speaker,
+        wake = { presence.onMotion() },
+    )
+
+    /** Test button in the settings. */
+    private val _deviceCalendars = MutableStateFlow<List<DeviceCalendar>?>(emptyList())
+    /** The tablet's calendars for the settings pickers; null without the calendar permission. */
+    val deviceCalendars: StateFlow<List<DeviceCalendar>?> = _deviceCalendars.asStateFlow()
+
+    fun refreshCalendars() {
+        viewModelScope.launch { _deviceCalendars.value = withContext(Dispatchers.IO) { calendarSource.calendars() } }
+        announcements.refreshNow()
+    }
+
+    fun testVoice() = speaker.say("Ceci est un test de la tablette du salon.")
+
     override fun onCleared() {
+        speaker.shutdown()
         battery.stop()
     }
 

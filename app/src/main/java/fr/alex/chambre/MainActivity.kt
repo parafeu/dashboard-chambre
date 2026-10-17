@@ -7,11 +7,13 @@ import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +35,8 @@ import fr.alex.chambre.presence.TouchGate
 import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.SettingsScreen
 import fr.alex.chambre.ui.DashboardScreen
+import fr.alex.chambre.ui.salon.SalonApp
+import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ui.DashboardViewModel
 import fr.alex.chambre.ui.SleepOverlay
 import fr.alex.chambre.ui.theme.ChambreTheme
@@ -147,6 +151,10 @@ private fun App(vm: DashboardViewModel) {
             val battery by vm.battery.state.collectAsStateWithLifecycle()
             val report by vm.batteryReporter.status.collectAsStateWithLifecycle()
             val preview by vm.cameraPreview.collectAsStateWithLifecycle()
+            val calendarError by vm.announcements.error.collectAsStateWithLifecycle()
+            val calendars by vm.deviceCalendars.collectAsStateWithLifecycle()
+            val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refreshCalendars() }
+            LaunchedEffect(Unit) { vm.refreshCalendars() }
             SettingsScreen(
                 initial = s,
                 conn = conn,
@@ -158,9 +166,17 @@ private fun App(vm: DashboardViewModel) {
                     settingsOpen = false
                 },
                 onClose = { settingsOpen = false },
+                calendarError = calendarError,
+                onTestVoice = vm::testVoice,
+                calendars = calendars,
+                onAllowCalendars = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
             )
         } else {
-            DashboardScreen(vm, onOpenSettings = { settingsOpen = true })
+            if (s.room == Room.SALON) {
+                SalonApp(vm, s, onOpenSettings = { settingsOpen = true })
+            } else {
+                DashboardScreen(vm, onOpenSettings = { settingsOpen = true })
+            }
         }
         SleepOverlay(asleep = presence == Presence.ASLEEP)
     }

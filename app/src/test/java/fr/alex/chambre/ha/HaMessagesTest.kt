@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -159,5 +160,21 @@ class HaMessagesTest {
         val e = HaProtocol.parse("""{"id":1,"type":"event","event":{"a":{"light.x":{"s":"on","a":{"hs_color":[28.4,65.7]}}}}}""") as Incoming.EntitiesEvent
         assertEquals(28.4f to 65.7f, e.added.getValue("light.x").hsColor)
         assertNull(EntityState("x.y", "off", JsonObject(emptyMap())).hsColor)
+    }
+
+    @Test
+    fun parses_ha_event() {
+        val e = HaProtocol.parse("""{"id":4,"type":"event","event":{"event_type":"timer.finished","data":{"entity_id":"timer.minuteur_1"},"origin":"LOCAL","time_fired":"2026-10-17T10:00:00+00:00"}}""") as Incoming.HaEvent
+        assertEquals(4, e.id)
+        assertEquals("timer.finished", e.eventType)
+        assertEquals("timer.minuteur_1", e.data["entity_id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun builds_subscribe_events() {
+        assertEquals(
+            Json.parseToJsonElement("""{"id":4,"type":"subscribe_events","event_type":"timer.finished"}"""),
+            Json.parseToJsonElement(HaProtocol.subscribeEvents(4, "timer.finished")),
+        )
     }
 }

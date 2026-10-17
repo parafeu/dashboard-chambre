@@ -1,5 +1,11 @@
 package fr.alex.chambre.settings
 
+import fr.alex.chambre.announce.DeviceCalendar
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenuItem
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,11 +31,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,11 +98,19 @@ fun SettingsScreen(
     preview: Bitmap?,
     onSave: (Settings) -> Unit,
     onClose: () -> Unit,
+    calendarError: String? = null,
+    onTestVoice: () -> Unit = {},
+    calendars: List<DeviceCalendar>? = emptyList(),
+    onAllowCalendars: () -> Unit = {},
 ) {
     var url by remember(initial) { mutableStateOf(initial.url) }
     var token by remember(initial) { mutableStateOf(initial.token) }
     var delayIdx by remember(initial) { mutableIntStateOf(nearestStep(initial.sleepDelaySec)) }
     var minArea by remember(initial) { mutableFloatStateOf(initial.sensitivity) }
+    var room by remember(initial) { mutableStateOf(initial.room) }
+    val deviceSlug = if (initial.room == Room.SALON) "salon" else "chambre"
+    var workCal by remember(initial) { mutableStateOf(initial.workCalendar) }
+    var alertsCal by remember(initial) { mutableStateOf(initial.alertsCalendar) }
     val canClose = initial.token.isNotBlank()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -124,6 +143,43 @@ fun SettingsScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         )
                     }
+                    Card("Pièce de cette tablette", Icons.Filled.Home) {
+                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                            Room.entries.forEachIndexed { i, r ->
+                                SegmentedButton(
+                                    selected = room == r,
+                                    onClick = { room = r },
+                                    shape = SegmentedButtonDefaults.itemShape(i, Room.entries.size),
+                                ) { Text(if (r == Room.CHAMBRE) "Chambre" else "Salon") }
+                            }
+                        }
+                        if (room == Room.SALON) {
+                            Text(
+                                "Annonces vocales : réunions du calendrier Travail 5 min avant, alertes du calendrier Alertes à confirmer, fin des minuteurs de cuisine.",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (calendars == null) {
+                                Text(
+                                    "L'app lit les agendas synchronisés sur la tablette (compte Google ou DAVx5).",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Button(onClick = onAllowCalendars) { Text("Autoriser l'accès aux agendas") }
+                            } else {
+                                CalendarPicker("Agenda Travail", workCal, calendars) { workCal = it }
+                                CalendarPicker("Agenda Alertes", alertsCal, calendars) { alertsCal = it }
+                                if (calendars.isEmpty()) {
+                                    Text(
+                                        "Aucun agenda sur la tablette : ajouter un compte Google ou DAVx5 dans les paramètres Android.",
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            if (calendarError != null) {
+                                Text(calendarError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
+                            FilledTonalButton(onClick = onTestVoice) { Text("Tester la voix") }
+                        }
+                    }
                     Card("Batterie → Home Assistant", Icons.Filled.BatteryChargingFull) {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Tile("Niveau", battery?.let { "${it.levelPct} %" } ?: "–", Modifier.weight(1f))
@@ -131,7 +187,7 @@ fun SettingsScreen(
                             Tile("Température", battery?.tempC?.let { "%.1f °C".format(it).replace('.', ',') } ?: "–", Modifier.weight(1f))
                         }
                         Text(
-                            "sensor.tablette_chambre_batterie\nbinary_sensor.tablette_chambre_en_charge\nsensor.tablette_chambre_temperature_batterie",
+                            "sensor.tablette_$deviceSlug" + "_batterie\nbinary_sensor.tablette_$deviceSlug" + "_en_charge\nsensor.tablette_$deviceSlug" + "_temperature_batterie",
                             style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -158,7 +214,12 @@ fun SettingsScreen(
                     Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (canClose) TextButton(onClick = onClose) { Text("Annuler") }
                         Button(onClick = {
-                            onSave(Settings(url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea))
+                            onSave(
+                                Settings(
+                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea,
+                                    room = room, workCalendar = workCal, alertsCalendar = alertsCal,
+                                ),
+                            )
                         }) { Text("Enregistrer") }
                     }
                 }
@@ -277,5 +338,31 @@ private fun CameraPreview(preview: Bitmap?, modifier: Modifier = Modifier) {
             Text("Aperçu · vert = mouvement", color = Color.White, style = MaterialTheme.typography.labelSmall)
         }
     }
+    }
+}
+
+/** Drop-down of the tablet's calendars; [selected] is a calendar id. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CalendarPicker(label: String, selected: String, calendars: List<DeviceCalendar>, onSelect: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val current = calendars.firstOrNull { it.id == selected }
+    ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }) {
+        OutlinedTextField(
+            value = current?.let { "${it.name} · ${it.account}" } ?: if (selected.isBlank()) "À choisir" else "Agenda introuvable",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            calendars.forEach { c ->
+                DropdownMenuItem(
+                    text = { Column { Text(c.name); Text(c.account, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                    onClick = { onSelect(c.id); open = false },
+                )
+            }
+        }
     }
 }

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.ha.Entities
+import fr.alex.chambre.ha.EntityState
 import fr.alex.chambre.ha.temperature
 import fr.alex.chambre.presence.Presence
 
@@ -70,13 +71,28 @@ fun DashboardScreen(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
                     battery = battery,
                     onOpenSettings = onOpenSettings,
                 )
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    ScenesPanel(entities, lastScene, online, vm.controller::runScene, Modifier.weight(1.1f))
-                    LightPanel(entities[Entities.LIGHT], online, vm.controller, Modifier.weight(1.4f), asleep = presence == Presence.ASLEEP)
-                    CoverPanel(entities[Entities.COVER], online, vm.controller, Modifier.weight(1f))
-                }
+                ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f))
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(24.dp))
         }
+    }
+}
+
+/** The bedroom's three columns (Ambiance | Lumière | Volet), also used as the « Chambre » tab of the salon. */
+@Composable
+fun ChambrePanels(
+    entities: Map<String, EntityState>,
+    online: Boolean,
+    lastScene: String?,
+    controller: DashboardController,
+    asleep: Boolean,
+    modifier: Modifier = Modifier,
+    /** Beside the salon room rail: tighter gaps and a narrower shutter so the light buttons still fit. */
+    narrow: Boolean = false,
+) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 20.dp)) {
+        ScenesPanel(entities, lastScene, online, controller::runScene, Modifier.weight(1.1f))
+        LightPanel(entities[Entities.LIGHT], online, controller, Modifier.weight(if (narrow) 1.5f else 1.4f), asleep = asleep)
+        CoverPanel(entities[Entities.COVER], online, controller, Modifier.weight(if (narrow) 0.9f else 1f))
     }
 }

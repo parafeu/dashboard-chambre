@@ -21,7 +21,13 @@ import java.util.concurrent.ConcurrentHashMap
 
 enum class ConnState { CONNECTING, CONNECTED, OFFLINE, AUTH_FAILED }
 
-data class HaConfig(val url: String, val token: String)
+data class HaConfig(
+    val url: String,
+    val token: String,
+    val entities: List<String> = Entities.ALL,
+    /** Also subscribe to HA's timer.finished events (living-room announcements). */
+    val timerEvents: Boolean = false,
+)
 
 /** What the UI needs from Home Assistant. */
 interface HaApi {
@@ -30,6 +36,9 @@ interface HaApi {
     val forecast: StateFlow<List<ForecastEntry>>
     val forecastDaily: StateFlow<List<ForecastEntry>>
     val errors: SharedFlow<String>
+
+    /** HA bus events this connection subscribed to (timer.finished in living-room mode). */
+    val events: SharedFlow<Incoming.HaEvent>
 
     suspend fun call(
         domain: String,
@@ -63,6 +72,9 @@ class HaRepository(
 
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
+
+    private val _events = MutableSharedFlow<Incoming.HaEvent>(extraBufferCapacity = 16)
+    override val events: SharedFlow<Incoming.HaEvent> = _events.asSharedFlow()
 
     @Volatile
     private var current: HaConnection? = null
@@ -102,17 +114,22 @@ class HaRepository(
         var subId = -1
         var forecastId = -1
         var dailyId = -1
+        var timerEventsId = -1
         try {
             for (msg in c.incoming) {
                 when (msg) {
                     Incoming.AuthRequired -> c.send(HaProtocol.auth(cfg.token))
                     Incoming.AuthOk -> {
                         subId = c.nextId()
-                        c.send(HaProtocol.subscribeEntities(subId, Entities.ALL))
+                        c.send(HaProtocol.subscribeEntities(subId, cfg.entities))
                         forecastId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(forecastId, Entities.WEATHER))
                         dailyId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(dailyId, Entities.WEATHER, "daily"))
+                        if (cfg.timerEvents) {
+                            timerEventsId = c.nextId()
+                            c.send(HaProtocol.subscribeEvents(timerEventsId, "timer.finished"))
+                        }
                         current = c
                         _conn.value = ConnState.CONNECTED
                         onConnected()
@@ -124,6 +141,7 @@ class HaRepository(
                         forecastId -> _forecast.value = msg.hours
                         dailyId -> _forecastDaily.value = msg.hours
                     }
+                    is Incoming.HaEvent -> if (msg.id == timerEventsId) _events.tryEmit(msg)
                     Incoming.Unknown -> Unit
                 }
             }
@@ -151,23 +169,28 @@ class HaRepository(
     }
 
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
+        val result = request(reportErrors = true) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
+        return result?.success == true
+    }
+
+    /** Sends one request and waits for its result; null when offline or timed out. */
+    private suspend fun request(reportErrors: Boolean, build: (Int) -> String): Incoming.Result? {
         val c = current ?: run {
-            _errors.tryEmit(OFFLINE_MESSAGE)
-            return false
+            if (reportErrors) _errors.tryEmit(OFFLINE_MESSAGE)
+            return null
         }
         val id = c.nextId()
         val deferred = CompletableDeferred<Incoming.Result>()
         pending[id] = deferred
-        if (!c.send(HaProtocol.callService(id, domain, service, entityId, data))) {
+        if (!c.send(build(id))) {
             pending.remove(id)
-            _errors.tryEmit(OFFLINE_MESSAGE)
-            return false
+            if (reportErrors) _errors.tryEmit(OFFLINE_MESSAGE)
+            return null
         }
         val result = withTimeoutOrNull(CALL_TIMEOUT_MS) { deferred.await() }
         pending.remove(id)
-        if (result?.success == true) return true
-        _errors.tryEmit(result?.errorMessage ?: "Pas de réponse de Home Assistant")
-        return false
+        if (result?.success != true && reportErrors) _errors.tryEmit(result?.errorMessage ?: "Pas de réponse de Home Assistant")
+        return result
     }
 
     private companion object {
