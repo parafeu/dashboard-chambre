@@ -25,7 +25,7 @@ Par défaut elle pilote le salon (volet, lumières) ; elle permet aussi d'aller 
 - Assistant vocal qui écoute (pas de micro, pas de commande vocale).
 - Créer / modifier des évènements depuis la tablette.
 - Annoncer les autres calendriers (ils ne sont pas affichés non plus).
-- Musique, caméras, alarme.
+- Musique, caméras, alarme. (Fin des minuteurs de cuisine : ajoutée, voir §11.)
 
 ### Anti-objectifs (échec même si « ça marche »)
 - Une alerte qu'on rate parce que l'écran dormait ou que l'app était en arrière-plan.
@@ -152,3 +152,15 @@ la voix française disponible, animations, détails visuels de la Cuisine (le pr
   `script.demarrer_minuteurX_5min/10min` existent déjà dans HA. Liste de courses : nombre d'articles
   (état de `todo.liste_dachats`). Prise tablette cuisine : **affichage seul** (la couper éteindrait la
   tablette de la cuisine). La fin des minuteurs n'est pas annoncée en v1 (non demandé).
+
+## 11. Réponses de l'utilisateur (2026-10-17)
+
+- **Tablette du salon : même modèle que la chambre** (Galaxy Tab S2 SM-T810, LineageOS 18.1 / Android 11,
+  armeabi-v7a). Le choix « écran toujours allumé + voile de veille » (§10) est donc confirmé.
+- **Fin des minuteurs de cuisine : annoncée** sur la tablette du salon.
+  - Source : évènement HA `timer.finished` (abonnement WebSocket `subscribe_events`) pour
+    `timer.minuteur_1..3` — une annulation (`timer.cancelled`) n'est pas annoncée.
+  - Rendu *(choix du constructeur)* : bandeau en haut comme une réunion (« MINUTEUR · {nom} terminé »,
+    bouton OK) + voix « {Minuteur 1} terminé » ; la voix est répétée **toutes les 30 s, 5 fois au plus**,
+    jusqu'à ce qu'on touche OK. Réveille l'écran. Priorité : alerte > minuteur > réunion.
+  - Nom annoncé : `friendly_name` de l'entité timer.
