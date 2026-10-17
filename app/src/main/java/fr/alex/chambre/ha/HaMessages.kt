@@ -2,6 +2,8 @@ package fr.alex.chambre.ha
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -19,7 +21,8 @@ sealed interface Incoming {
     data object AuthRequired : Incoming
     data object AuthOk : Incoming
     data class AuthInvalid(val message: String) : Incoming
-    data class Result(val id: Int, val success: Boolean, val errorMessage: String?) : Incoming
+    data class Result(val id: Int, val success: Boolean, val errorMessage: String?, val result: JsonElement? = null) : Incoming
+    data class HaEvent(val id: Int, val eventType: String, val data: JsonObject) : Incoming
     data class EntitiesEvent(
         val id: Int,
         val added: Map<String, EntityState>,
@@ -44,6 +47,7 @@ object HaProtocol {
                 id = id ?: return Incoming.Unknown,
                 success = obj["success"]?.jsonPrimitive?.booleanOrNull ?: false,
                 errorMessage = (obj["error"] as? JsonObject)?.str("message"),
+                result = obj["result"]?.takeUnless { it is JsonNull },
             )
             "event" -> parseEvent(id ?: return Incoming.Unknown, obj["event"] as? JsonObject ?: return Incoming.Unknown)
             else -> Incoming.Unknown
@@ -51,6 +55,9 @@ object HaProtocol {
     }
 
     private fun parseEvent(id: Int, event: JsonObject): Incoming {
+        event.str("event_type")?.let { type ->
+            return Incoming.HaEvent(id, type, event["data"] as? JsonObject ?: JsonObject(emptyMap()))
+        }
         val forecast = event["forecast"] as? JsonArray
         if (forecast != null) {
             val hours = forecast.mapNotNull { el ->
@@ -109,6 +116,29 @@ object HaProtocol {
         put("service", service)
         putJsonObject("target") { put("entity_id", entityId) }
         put("service_data", data)
+    }.toString()
+
+    /** Same as [callService] but asks HA to return the service's response (e.g. calendar.get_events). */
+    fun callServiceWithResponse(
+        id: Int,
+        domain: String,
+        service: String,
+        entityId: String,
+        data: JsonObject = JsonObject(emptyMap()),
+    ): String = buildJsonObject {
+        put("id", id)
+        put("type", "call_service")
+        put("domain", domain)
+        put("service", service)
+        putJsonObject("target") { put("entity_id", entityId) }
+        put("service_data", data)
+        put("return_response", true)
+    }.toString()
+
+    fun subscribeEvents(id: Int, eventType: String): String = buildJsonObject {
+        put("id", id)
+        put("type", "subscribe_events")
+        put("event_type", eventType)
     }.toString()
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content

@@ -37,12 +37,23 @@ interface HaApi {
     val forecastDaily: StateFlow<List<ForecastEntry>>
     val errors: SharedFlow<String>
 
+    /** HA bus events this connection subscribed to (timer.finished in living-room mode). */
+    val events: SharedFlow<Incoming.HaEvent>
+
     suspend fun call(
         domain: String,
         service: String,
         entityId: String,
         data: JsonObject = JsonObject(emptyMap()),
     ): Boolean
+
+    /** Calls a service that returns data; the service's `response` object, or null on any failure. */
+    suspend fun callForResponse(
+        domain: String,
+        service: String,
+        entityId: String,
+        data: JsonObject = JsonObject(emptyMap()),
+    ): JsonObject?
 }
 
 /**
@@ -69,6 +80,9 @@ class HaRepository(
 
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
+
+    private val _events = MutableSharedFlow<Incoming.HaEvent>(extraBufferCapacity = 16)
+    override val events: SharedFlow<Incoming.HaEvent> = _events.asSharedFlow()
 
     @Volatile
     private var current: HaConnection? = null
@@ -108,6 +122,7 @@ class HaRepository(
         var subId = -1
         var forecastId = -1
         var dailyId = -1
+        var timerEventsId = -1
         try {
             for (msg in c.incoming) {
                 when (msg) {
@@ -119,6 +134,10 @@ class HaRepository(
                         c.send(HaProtocol.subscribeForecast(forecastId, Entities.WEATHER))
                         dailyId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(dailyId, Entities.WEATHER, "daily"))
+                        if (cfg.timerEvents) {
+                            timerEventsId = c.nextId()
+                            c.send(HaProtocol.subscribeEvents(timerEventsId, "timer.finished"))
+                        }
                         current = c
                         _conn.value = ConnState.CONNECTED
                         onConnected()
@@ -130,6 +149,7 @@ class HaRepository(
                         forecastId -> _forecast.value = msg.hours
                         dailyId -> _forecastDaily.value = msg.hours
                     }
+                    is Incoming.HaEvent -> if (msg.id == timerEventsId) _events.tryEmit(msg)
                     Incoming.Unknown -> Unit
                 }
             }
@@ -157,23 +177,34 @@ class HaRepository(
     }
 
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
+        val result = request(reportErrors = true) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
+        return result?.success == true
+    }
+
+    override suspend fun callForResponse(domain: String, service: String, entityId: String, data: JsonObject): JsonObject? {
+        val result = request(reportErrors = false) { id -> HaProtocol.callServiceWithResponse(id, domain, service, entityId, data) }
+        if (result?.success != true) return null
+        return (result.result as? JsonObject)?.get("response") as? JsonObject
+    }
+
+    /** Sends one request and waits for its result; null when offline or timed out. */
+    private suspend fun request(reportErrors: Boolean, build: (Int) -> String): Incoming.Result? {
         val c = current ?: run {
-            _errors.tryEmit(OFFLINE_MESSAGE)
-            return false
+            if (reportErrors) _errors.tryEmit(OFFLINE_MESSAGE)
+            return null
         }
         val id = c.nextId()
         val deferred = CompletableDeferred<Incoming.Result>()
         pending[id] = deferred
-        if (!c.send(HaProtocol.callService(id, domain, service, entityId, data))) {
+        if (!c.send(build(id))) {
             pending.remove(id)
-            _errors.tryEmit(OFFLINE_MESSAGE)
-            return false
+            if (reportErrors) _errors.tryEmit(OFFLINE_MESSAGE)
+            return null
         }
         val result = withTimeoutOrNull(CALL_TIMEOUT_MS) { deferred.await() }
         pending.remove(id)
-        if (result?.success == true) return true
-        _errors.tryEmit(result?.errorMessage ?: "Pas de réponse de Home Assistant")
-        return false
+        if (result?.success != true && reportErrors) _errors.tryEmit(result?.errorMessage ?: "Pas de réponse de Home Assistant")
+        return result
     }
 
     private companion object {

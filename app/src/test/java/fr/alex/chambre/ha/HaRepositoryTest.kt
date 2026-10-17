@@ -202,4 +202,35 @@ class HaRepositoryTest {
         val sub = fake.next()
         assertEquals(listOf("light.a", "cover.b"), sub["entity_ids"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
+
+    @Test
+    fun timer_events_subscription_and_relay() = runBlocking {
+        val fake = FakeHa().also(::enqueue)
+        val r = HaRepository(scope, client, flowOf(HaConfig(server.url("/").toString().trimEnd('/'), "secret", timerEvents = true)), listOf(10))
+        fake.handshake()
+        val sub = fake.next()
+        assertEquals("subscribe_events", sub["type"]!!.jsonPrimitive.content)
+        assertEquals("timer.finished", sub["event_type"]!!.jsonPrimitive.content)
+        val id = sub["id"]!!.jsonPrimitive.int
+        val got = async(Dispatchers.IO) { withTimeout(5_000) { r.events.first() } }
+        delay(100)
+        fake.socket.send("""{"id":$id,"type":"event","event":{"event_type":"timer.finished","data":{"entity_id":"timer.minuteur_2"}}}""")
+        assertEquals("timer.minuteur_2", got.await().data["entity_id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun call_for_response_returns_response_or_null() = runBlocking {
+        val fake = FakeHa().also(::enqueue)
+        val r = repo()
+        fake.handshake()
+        withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
+        val ok = async(Dispatchers.IO) { r.callForResponse("calendar", "get_events", "calendar.travail") }
+        val id1 = fake.next()["id"]!!.jsonPrimitive.int
+        fake.socket.send("""{"id":$id1,"type":"result","success":true,"result":{"response":{"calendar.travail":{"events":[]}}}}""")
+        assertTrue(withTimeout(5_000) { ok.await() }!!.containsKey("calendar.travail"))
+        val ko = async(Dispatchers.IO) { r.callForResponse("calendar", "get_events", "calendar.nope") }
+        val id2 = fake.next()["id"]!!.jsonPrimitive.int
+        fake.socket.send("""{"id":$id2,"type":"result","success":false,"error":{"code":"x","message":"Unknown entity"}}""")
+        assertEquals(null, withTimeout(5_000) { ko.await() })
+    }
 }
