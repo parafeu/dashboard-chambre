@@ -12,12 +12,18 @@ import kotlinx.coroutines.flow.map
 import fr.alex.chambre.battery.RegistrationStore
 import java.util.UUID
 
+/** Which room this tablet serves: the bedroom panel, or the living-room dashboard with announcements. */
+enum class Room { CHAMBRE, SALON }
+
 data class Settings(
     val url: String = "http://homeassistant.local:8123",
     val token: String = "",
     val sleepDelaySec: Int = 60,
     /** Minimum moving-region size, as a fraction of the image (0.005–0.10). */
     val sensitivity: Float = 0.03f,
+    val room: Room = Room.CHAMBRE,
+    val workCalendar: String = "calendar.travail",
+    val alertsCalendar: String = "calendar.alertes",
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */
@@ -35,6 +41,9 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             token = p[TOKEN] ?: d.token,
             sleepDelaySec = p[SLEEP] ?: d.sleepDelaySec,
             sensitivity = p[SENSITIVITY] ?: d.sensitivity,
+            room = Room.entries.firstOrNull { it.name == p[ROOM] } ?: d.room,
+            workCalendar = p[WORK_CAL] ?: d.workCalendar,
+            alertsCalendar = p[ALERTS_CAL] ?: d.alertsCalendar,
         )
     }
 
@@ -44,6 +53,9 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             p[TOKEN] = s.token.trim()
             p[SLEEP] = s.sleepDelaySec
             p[SENSITIVITY] = s.sensitivity
+            p[ROOM] = s.room.name
+            p[WORK_CAL] = s.workCalendar.trim()
+            p[ALERTS_CAL] = s.alertsCalendar.trim()
         }
     }
 
@@ -61,6 +73,9 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
     }
 
     private companion object {
+        val ROOM = stringPreferencesKey("room")
+        val WORK_CAL = stringPreferencesKey("work_calendar")
+        val ALERTS_CAL = stringPreferencesKey("alerts_calendar")
         val DEVICE_ID = stringPreferencesKey("mobile_app_device_id")
         val WEBHOOK_ID = stringPreferencesKey("mobile_app_webhook_id")
         val URL = stringPreferencesKey("url")

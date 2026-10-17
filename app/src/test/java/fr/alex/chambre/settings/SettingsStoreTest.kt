@@ -1,6 +1,7 @@
 package fr.alex.chambre.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,7 +27,7 @@ class SettingsStoreTest {
     @Test
     fun defaults() = runBlocking {
         assertEquals(
-            Settings(url = "http://homeassistant.local:8123", token = "", sleepDelaySec = 60, sensitivity = 0.03f),
+            Settings(url = "http://homeassistant.local:8123", token = "", sleepDelaySec = 60, sensitivity = 0.03f, room = Room.CHAMBRE, workCalendar = "calendar.travail", alertsCalendar = "calendar.alertes"),
             store().settings.first(),
         )
     }
@@ -71,5 +72,20 @@ class SettingsStoreTest {
         assertEquals("wh1", s.webhookId())
         s.saveWebhookId(null)
         assertEquals(null, s.webhookId())
+    }
+
+    @Test
+    fun salon_room_and_calendars_round_trip() = runBlocking {
+        val s = store()
+        val saved = Settings(url = "http://ha:8123", token = "t", room = Room.SALON, workCalendar = "calendar.boulot", alertsCalendar = "calendar.alertes_maison")
+        s.save(saved)
+        assertEquals(saved, s.settings.first())
+    }
+
+    @Test
+    fun unknown_room_falls_back_to_chambre() = runBlocking {
+        val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
+        ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("room")] = "GARAGE" }
+        assertEquals(Room.CHAMBRE, SettingsStore(ds).settings.first().room)
     }
 }
