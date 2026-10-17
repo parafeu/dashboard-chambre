@@ -61,24 +61,25 @@ fun AgendaPanel(
             return@Section
         }
         val isWork = next.calendar == workCalendar
-        Surface(shape = RoundedCornerShape(32.dp), color = Color(0xFF6A3B00), contentColor = Color(0xFFFFDCBE), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(horizontal = 28.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(shape = RoundedCornerShape(24.dp), color = Color(0xFF6A3B00), contentColor = Color(0xFFFFDCBE), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    (if (isWork) "RÉUNION" else "ALERTE") + " · " + timeLabel(next, zone) + (if (next.allDay) "" else " · " + untilLabel(now, next.start)),
-                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp,
+                    (if (isWork) "RÉUNION" else "ALERTE") + " · " + timeLabel(next, zone) + (if (next.allDay) "" else " · " + untilLabel(now, next.start).replace(' ', ' ')),
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp,
                 )
-                Text(next.title, fontSize = 34.sp, fontWeight = FontWeight.Light, lineHeight = 40.sp, color = Color(0xFFFFF3E6), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                Text(if (isWork) "Travail · annoncée 5 min avant" else "Alerte · à confirmer", style = MaterialTheme.typography.bodyMedium)
+                Text(next.title, fontSize = 26.sp, fontWeight = FontWeight.Light, lineHeight = 30.sp, color = Color(0xFFFFF3E6), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(if (isWork) "Travail · annonce 5 min avant" else "Alerte à confirmer", style = MaterialTheme.typography.bodySmall)
             }
         }
         if (list.size > 1) {
-            Text("Ensuite aujourd'hui", Modifier.padding(start = 8.dp, top = 6.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            list.drop(1).take(4).forEach { e ->
-                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(timeLabel(e, zone), fontSize = 22.sp, fontWeight = FontWeight.Light)
+            Text("Ensuite aujourd'hui", Modifier.padding(start = 8.dp, top = 2.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            list.drop(1).take(5).forEach { e ->
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(timeLabel(e, zone), fontSize = 18.sp, fontWeight = FontWeight.Light)
                         Column(Modifier.weight(1f)) {
-                            Text(e.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(e.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(
                                 if (e.calendar == workCalendar) "Travail" else "Alerte à confirmer",
                                 maxLines = 1,
@@ -88,6 +89,7 @@ fun AgendaPanel(
                         }
                     }
                 }
+            }
             }
         }
     }
