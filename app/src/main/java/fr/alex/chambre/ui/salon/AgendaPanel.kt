@@ -67,7 +67,7 @@ fun AgendaPanel(
                     (if (isWork) "RÉUNION" else "ALERTE") + " · " + timeLabel(next, zone) + (if (next.allDay) "" else " · " + untilLabel(now, next.start)),
                     style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp,
                 )
-                Text(next.title, fontSize = 44.sp, fontWeight = FontWeight.Light, lineHeight = 48.sp, color = Color(0xFFFFF3E6), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(next.title, fontSize = 34.sp, fontWeight = FontWeight.Light, lineHeight = 40.sp, color = Color(0xFFFFF3E6), maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text(if (isWork) "Travail · annoncée 5 min avant" else "Alerte · à confirmer", style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -75,12 +75,13 @@ fun AgendaPanel(
             Text("Ensuite aujourd'hui", Modifier.padding(start = 8.dp, top = 6.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             list.drop(1).take(4).forEach { e ->
                 Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text(timeLabel(e, zone), Modifier.widthIn(min = 64.dp), fontSize = 24.sp, fontWeight = FontWeight.Light)
-                        Column {
-                            Text(e.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(timeLabel(e, zone), fontSize = 22.sp, fontWeight = FontWeight.Light)
+                        Column(Modifier.weight(1f)) {
+                            Text(e.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(
-                                if (e.calendar == workCalendar) "Travail · annoncée 5 min avant" else "Alerte · à confirmer",
+                                if (e.calendar == workCalendar) "Travail" else "Alerte à confirmer",
+                                maxLines = 1,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (e.calendar == workCalendar) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                             )

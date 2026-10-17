@@ -87,10 +87,12 @@ fun ChambrePanels(
     controller: DashboardController,
     asleep: Boolean,
     modifier: Modifier = Modifier,
+    /** Beside the salon room rail: tighter gaps and a narrower shutter so the light buttons still fit. */
+    narrow: Boolean = false,
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 20.dp)) {
         ScenesPanel(entities, lastScene, online, controller::runScene, Modifier.weight(1.1f))
-        LightPanel(entities[Entities.LIGHT], online, controller, Modifier.weight(1.4f), asleep = asleep)
-        CoverPanel(entities[Entities.COVER], online, controller, Modifier.weight(1f))
+        LightPanel(entities[Entities.LIGHT], online, controller, Modifier.weight(if (narrow) 1.5f else 1.4f), asleep = asleep)
+        CoverPanel(entities[Entities.COVER], online, controller, Modifier.weight(if (narrow) 0.9f else 1f))
     }
 }

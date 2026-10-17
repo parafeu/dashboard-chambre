@@ -27,7 +27,7 @@ import java.util.concurrent.Executors
  * Watches the front camera (~3 fps) and calls [onMotion] when [MotionDecider] sees real motion.
  * While [previewEnabled] is true, publishes an annotated preview on [preview].
  */
-@OptIn(ExperimentalCamera2Interop::class)
+@androidx.annotation.OptIn(markerClass = [ExperimentalCamera2Interop::class])
 class CameraMotionSource(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,

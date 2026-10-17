@@ -38,6 +38,7 @@ private class CalApi : HaApi {
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject) = true
     override suspend fun callForResponse(domain: String, service: String, entityId: String, data: JsonObject): JsonObject? {
         asked += entityId
+        if (conn.value != ConnState.CONNECTED) return null
         return responses[entityId]
     }
 }
@@ -142,5 +143,19 @@ class AnnouncementControllerTest {
         api.responses["calendar.alertes"] = events("calendar.alertes", """{"start":"2026-10-17T19:00:00+02:00","summary":"Litière"}""")
         val c = start()
         assertEquals(listOf("Point", "Revue", "Litière"), c.upcoming.value.map { it.title })
+    }
+
+    @Test
+    fun reads_calendars_once_connected_and_reports_no_error_while_offline() = runTest {
+        api.conn.value = ConnState.CONNECTING
+        api.responses["calendar.travail"] = events("calendar.travail", """{"start":"2026-10-17T16:30:00+02:00","summary":"Revue"}""")
+        api.responses["calendar.alertes"] = events("calendar.alertes", "")
+        val c = start()
+        assertNull(c.error.value)
+        assertTrue(c.upcoming.value.isEmpty())
+        api.conn.value = ConnState.CONNECTED
+        advance(1_000)
+        assertEquals(listOf("Revue"), c.upcoming.value.map { it.title })
+        assertNull(c.error.value)
     }
 }

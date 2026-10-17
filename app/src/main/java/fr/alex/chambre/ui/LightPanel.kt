@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -165,6 +166,7 @@ private fun LightButtonGroup(isOn: Boolean, enabled: Boolean, onToggle: () -> Un
                 containerColor = if (isOn) colors.primary else colors.surfaceContainerHighest,
                 contentColor = if (isOn) colors.onPrimary else colors.onSurface,
             ),
+            contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = Modifier.weight(0.42f).fillMaxHeight(),
         ) {
             Icon(Icons.Filled.PowerSettingsNew, null, Modifier.size(24.dp))
@@ -175,6 +177,7 @@ private fun LightButtonGroup(isOn: Boolean, enabled: Boolean, onToggle: () -> Un
             onClick = onDefault,
             enabled = enabled,
             shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 32.dp, bottomEnd = 32.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = Modifier.weight(0.58f).fillMaxHeight(),
         ) {
             Icon(Icons.Filled.RestartAlt, null, Modifier.size(24.dp))

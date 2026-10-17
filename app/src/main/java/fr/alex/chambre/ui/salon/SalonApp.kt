@@ -118,8 +118,9 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
 
     val online = conn == ConnState.CONNECTED
     val weather = entities[Entities.WEATHER]
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
     Box(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).pointerInput(Unit) {
+        Modifier.fillMaxSize().pointerInput(Unit) {
             awaitPointerEventScope {
                 while (true) {
                     awaitPointerEvent(PointerEventPass.Initial)
@@ -164,12 +165,13 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
                         entities, online, vm.kitchenController, now,
                         onStartTimer = vm::startTimer, onCancelTimer = vm::cancelTimer, modifier = Modifier.weight(1f),
                     )
-                    SalonTab.CHAMBRE -> ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f))
+                    SalonTab.CHAMBRE -> ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f), narrow = true)
                 }
             }
         }
         AnnouncementOverlays(tick, onAcknowledge = vm.announcements::acknowledge)
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(24.dp))
+    }
     }
 }
 

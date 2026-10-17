@@ -1,5 +1,6 @@
 package fr.alex.chambre.announce
 
+import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.ha.HaApi
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.settings.Settings
@@ -98,9 +99,12 @@ class AnnouncementController(
             }
         }
         launch {
-            while (true) {
-                refresh(e, work, alerts)
-                delay(refreshMs)
+            // Read the calendars as soon as HA is connected (again), then every refreshMs.
+            api.conn.map { it == ConnState.CONNECTED }.distinctUntilChanged().collectLatest { connected ->
+                while (connected) {
+                    refresh(e, work, alerts)
+                    delay(refreshMs)
+                }
             }
         }
         while (true) {
