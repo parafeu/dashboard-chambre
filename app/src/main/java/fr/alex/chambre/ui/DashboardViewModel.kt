@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import fr.alex.chambre.announce.AnnouncementController
+import fr.alex.chambre.announce.AnnouncementStore
+import fr.alex.chambre.announce.TtsSpeaker
 import fr.alex.chambre.battery.BatteryMonitor
 import fr.alex.chambre.battery.BatteryReporter
 import fr.alex.chambre.ha.DeviceInfo
@@ -72,7 +75,23 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         },
     )
 
+    private val speaker = TtsSpeaker(app)
+
+    /** Living-room announcements (does nothing in bedroom mode). */
+    val announcements = AnnouncementController(
+        viewModelScope,
+        ha,
+        settings.filterNotNull(),
+        AnnouncementStore(app.dataStore),
+        speaker,
+        wake = { presence.onMotion() },
+    )
+
+    /** Test button in the settings. */
+    fun testVoice() = speaker.say("Ceci est un test de la tablette du salon.")
+
     override fun onCleared() {
+        speaker.shutdown()
         battery.stop()
     }
 

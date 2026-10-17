@@ -9,12 +9,12 @@ import java.time.Duration
 import java.time.Instant
 
 /** Announcements already made or confirmed, kept across restarts for two days. */
-class AnnouncementStore(private val dataStore: DataStore<Preferences>) {
+class AnnouncementStore(private val dataStore: DataStore<Preferences>) : DoneStore {
 
-    suspend fun done(): Set<String> =
+    override suspend fun done(): Set<String> =
         (dataStore.data.first()[DONE] ?: emptySet()).mapNotNull { decode(it)?.second }.toSet()
 
-    suspend fun markDone(key: String, at: Instant) {
+    override suspend fun markDone(key: String, at: Instant) {
         val horizon = at.minus(KEEP)
         dataStore.edit { p ->
             val kept = (p[DONE] ?: emptySet()).filter { e -> decode(e)?.first?.isAfter(horizon) == true }
