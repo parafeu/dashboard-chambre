@@ -130,7 +130,9 @@ class AnnouncementController(
         val from = t.minusSeconds(3_600) // late alerts: shown up to one hour after their start
         val to = t.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
         val reads = withContext(io) { chosen.map { (name, id) -> name to source.read(id, from, to) } }
-        val events = reads.flatMap { (_, r) -> (r as? CalendarRead.Events)?.events.orEmpty() }.filter { it.isToday(t, zone) }
+        val events = reads.flatMap { (_, r) -> (r as? CalendarRead.Events)?.events.orEmpty() }
+            .filter { it.isToday(t, zone) }
+            .filterNot { it.allDay && it.calendar == work } // all-day work entries (daily tasks, télétravail) are not meetings
         _error.value = when {
             reads.any { it.second is CalendarRead.NoPermission } -> "Accès aux agendas non autorisé"
             else -> reads.filter { it.second is CalendarRead.NotFound }.map { it.first }.takeIf { it.isNotEmpty() }

@@ -212,6 +212,17 @@ class AnnouncementControllerTest {
     }
 
     @Test
+    fun all_day_work_events_are_not_meetings() = runTest {
+        // e.g. « Télétravail » or a daily task: no time, so nothing to announce and nothing to list.
+        cals.events[W] = listOf(ev(W, "Télétravail", "2026-10-16T22:00:00Z", allDay = true), ev(W, "Revue", "2026-10-17T14:30:00Z"))
+        cals.events[A] = listOf(ev(A, "Poubelles", "2026-10-16T22:00:00Z", allDay = true))
+        val c = start()
+        advance(10 * 60_000)
+        assertEquals(listOf("Poubelles", "Revue"), c.upcoming.value.map { it.title })
+        assertTrue(speaker.said.none { "Télétravail" in it })
+    }
+
+    @Test
     fun calendars_are_read_without_home_assistant() = runTest {
         api.conn.value = ConnState.CONNECTING
         cals.events[W] = listOf(ev(W, "Revue", "2026-10-17T14:30:00Z"))
