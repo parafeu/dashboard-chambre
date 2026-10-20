@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import fr.alex.chambre.mealie.CuisineController
+import fr.alex.chambre.mealie.MealieClient
 import java.util.concurrent.TimeUnit
 
 
@@ -59,6 +61,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** Living-room mode: the salon and kitchen panels drive their own entities. */
     val salonController = DashboardController(viewModelScope, ha, Entities.SALON_ROOM)
     val kitchenController = DashboardController(viewModelScope, ha, Entities.KITCHEN_ROOM)
+
+    /** Kitchen-tablet mode: Mealie recipes (read only). */
+    val cuisine = CuisineController(
+        viewModelScope,
+        settings.filterNotNull(),
+        apiFor = { s -> if (s.mealieUrl.isBlank() || s.mealieToken.isBlank()) null else MealieClient(s.mealieUrl, s.mealieToken, client) },
+    )
 
     fun startTimer(timer: String, minutes: Int) {
         viewModelScope.launch { ha.call("script", "turn_on", Entities.timerStartScript(timer, minutes)) }
@@ -88,7 +97,11 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 manufacturer = Build.MANUFACTURER,
                 model = Build.MODEL,
                 osVersion = Build.VERSION.RELEASE,
-                deviceName = if (settings.value?.room == Room.SALON) "Tablette salon" else MobileAppClient.DEVICE_NAME,
+                deviceName = when (settings.value?.room) {
+                    Room.SALON -> "Tablette salon"
+                    Room.CUISINE -> "Tablette cuisine"
+                    else -> MobileAppClient.DEVICE_NAME
+                },
             )
         },
     )

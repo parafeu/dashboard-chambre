@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.presence.CameraMotionSource
+import fr.alex.chambre.ui.cuisine.CuisineApp
 import fr.alex.chambre.presence.Presence
 import fr.alex.chambre.presence.TouchGate
 import fr.alex.chambre.settings.Settings
@@ -158,6 +159,7 @@ private fun App(vm: DashboardViewModel) {
             val preview by vm.cameraPreview.collectAsStateWithLifecycle()
             val calendarError by vm.announcements.error.collectAsStateWithLifecycle()
             val calendars by vm.deviceCalendars.collectAsStateWithLifecycle()
+            val mealieError by vm.cuisine.error.collectAsStateWithLifecycle()
             val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refreshCalendars() }
             LaunchedEffect(Unit) { vm.refreshCalendars() }
             SettingsScreen(
@@ -173,14 +175,15 @@ private fun App(vm: DashboardViewModel) {
                 onClose = { settingsOpen = false },
                 calendarError = calendarError,
                 onTestVoice = vm::testVoice,
+                mealieError = mealieError,
                 calendars = calendars,
                 onAllowCalendars = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
             )
         } else {
-            if (s.room == Room.SALON) {
-                SalonApp(vm, s, onOpenSettings = { settingsOpen = true })
-            } else {
-                DashboardScreen(vm, onOpenSettings = { settingsOpen = true })
+            when (s.room) {
+                Room.SALON -> SalonApp(vm, s, onOpenSettings = { settingsOpen = true })
+                Room.CUISINE -> CuisineApp(vm, onOpenSettings = { settingsOpen = true })
+                Room.CHAMBRE -> DashboardScreen(vm, onOpenSettings = { settingsOpen = true })
             }
         }
         SleepOverlay(asleep = presence == Presence.ASLEEP)

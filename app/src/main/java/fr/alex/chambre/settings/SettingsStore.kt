@@ -14,7 +14,7 @@ import fr.alex.chambre.battery.RegistrationStore
 import java.util.UUID
 
 /** Which room this tablet serves: the bedroom panel, or the living-room dashboard with announcements. */
-enum class Room { CHAMBRE, SALON }
+enum class Room { CHAMBRE, SALON, CUISINE }
 
 /** Camera API used for motion detection: CameraX, or the old Camera1 for HALs CameraX cannot open. */
 enum class CameraApi { CAMERAX, CAMERA1 }
@@ -32,6 +32,9 @@ data class Settings(
     val cameraApi: CameraApi = CameraApi.CAMERAX,
     /** Open the dashboard when the tablet boots (see BootReceiver). */
     val autoStart: Boolean = false,
+    /** Mealie server (Cuisine mode) and its API key; blank until set in the settings. */
+    val mealieUrl: String = "",
+    val mealieToken: String = "",
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */
@@ -57,6 +60,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             alertsCalendar = p[ALERTS_CAL] ?: d.alertsCalendar,
             cameraApi = CameraApi.entries.firstOrNull { it.name == p[CAMERA_API] } ?: d.cameraApi,
             autoStart = p[AUTO_START] ?: d.autoStart,
+            mealieUrl = p[MEALIE_URL] ?: d.mealieUrl,
+            mealieToken = cleanToken(p[MEALIE_TOKEN] ?: d.mealieToken),
         )
     }
 
@@ -71,6 +76,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             p[ALERTS_CAL] = s.alertsCalendar.trim()
             p[CAMERA_API] = s.cameraApi.name
             p[AUTO_START] = s.autoStart
+            p[MEALIE_URL] = normalizeUrl(s.mealieUrl)
+            p[MEALIE_TOKEN] = cleanToken(s.mealieToken)
         }
     }
 
@@ -93,6 +100,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
         val ALERTS_CAL = stringPreferencesKey("alerts_calendar")
         val CAMERA_API = stringPreferencesKey("camera_api")
         val AUTO_START = booleanPreferencesKey("auto_start")
+        val MEALIE_URL = stringPreferencesKey("mealie_url")
+        val MEALIE_TOKEN = stringPreferencesKey("mealie_token")
         val DEVICE_ID = stringPreferencesKey("mobile_app_device_id")
         val WEBHOOK_ID = stringPreferencesKey("mobile_app_webhook_id")
         val URL = stringPreferencesKey("url")

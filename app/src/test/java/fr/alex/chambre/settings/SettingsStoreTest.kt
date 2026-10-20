@@ -121,6 +121,16 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun cuisine_room_and_mealie_round_trip_cleaned() = runBlocking {
+        val s = store()
+        s.save(Settings(token = "t", room = Room.CUISINE, mealieUrl = " recettes.example.dev/ ", mealieToken = " ab.cd\n.ef "))
+        val read = s.settings.first()
+        assertEquals(Room.CUISINE, read.room)
+        assertEquals("http://recettes.example.dev", read.mealieUrl)
+        assertEquals("ab.cd.ef", read.mealieToken)
+    }
+
+    @Test
     fun unknown_room_falls_back_to_chambre() = runBlocking {
         val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
         ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("room")] = "GARAGE" }

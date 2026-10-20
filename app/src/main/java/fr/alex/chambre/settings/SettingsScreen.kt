@@ -112,6 +112,7 @@ fun SettingsScreen(
     onTestVoice: () -> Unit = {},
     calendars: List<DeviceCalendar>? = emptyList(),
     onAllowCalendars: () -> Unit = {},
+    mealieError: String? = null,
 ) {
     var url by remember(initial) { mutableStateOf(initial.url) }
     var token by remember(initial) { mutableStateOf(initial.token) }
@@ -130,6 +131,8 @@ fun SettingsScreen(
     val deviceSlug = if (initial.room == Room.SALON) "salon" else "chambre"
     var workCal by remember(initial) { mutableStateOf(initial.workCalendar) }
     var alertsCal by remember(initial) { mutableStateOf(initial.alertsCalendar) }
+    var mealieUrl by remember(initial) { mutableStateOf(initial.mealieUrl) }
+    var mealieToken by remember(initial) { mutableStateOf(initial.mealieToken) }
     val canClose = initial.token.isNotBlank()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -169,7 +172,27 @@ fun SettingsScreen(
                                     selected = room == r,
                                     onClick = { room = r },
                                     shape = SegmentedButtonDefaults.itemShape(i, Room.entries.size),
-                                ) { Text(if (r == Room.CHAMBRE) "Chambre" else "Salon") }
+                                ) { Text(roomLabel(r)) }
+                            }
+                        }
+                        if (room == Room.CUISINE) {
+                            Text(
+                                "Recettes Mealie (lecture seule) : adresse du serveur et clé API (Mealie → profil → Clés API).",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedTextField(
+                                value = mealieUrl, onValueChange = { mealieUrl = it }, label = { Text("Adresse Mealie") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            )
+                            OutlinedTextField(
+                                value = mealieToken, onValueChange = { mealieToken = it }, label = { Text("Clé API Mealie") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            )
+                            if (mealieError != null) {
+                                Text(mealieError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                         }
                         if (room == Room.SALON) {
@@ -275,6 +298,7 @@ fun SettingsScreen(
                             onSave(
                                 Settings(
                                     url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart,
+                                    mealieUrl = mealieUrl, mealieToken = mealieToken,
                                     room = room, workCalendar = workCal, alertsCalendar = alertsCal,
                                 ),
                             )
@@ -423,4 +447,10 @@ private fun CalendarPicker(label: String, selected: String, calendars: List<Devi
             }
         }
     }
+}
+
+private fun roomLabel(r: Room) = when (r) {
+    Room.CHAMBRE -> "Chambre"
+    Room.SALON -> "Salon"
+    Room.CUISINE -> "Cuisine"
 }
