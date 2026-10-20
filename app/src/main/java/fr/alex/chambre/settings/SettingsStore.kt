@@ -2,6 +2,7 @@ package fr.alex.chambre.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -29,6 +30,8 @@ data class Settings(
     val workCalendar: String = "",
     val alertsCalendar: String = "",
     val cameraApi: CameraApi = CameraApi.CAMERAX,
+    /** Open the dashboard when the tablet boots (see BootReceiver). */
+    val autoStart: Boolean = false,
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */
@@ -53,6 +56,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             workCalendar = p[WORK_CAL] ?: d.workCalendar,
             alertsCalendar = p[ALERTS_CAL] ?: d.alertsCalendar,
             cameraApi = CameraApi.entries.firstOrNull { it.name == p[CAMERA_API] } ?: d.cameraApi,
+            autoStart = p[AUTO_START] ?: d.autoStart,
         )
     }
 
@@ -66,6 +70,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             p[WORK_CAL] = s.workCalendar.trim()
             p[ALERTS_CAL] = s.alertsCalendar.trim()
             p[CAMERA_API] = s.cameraApi.name
+            p[AUTO_START] = s.autoStart
         }
     }
 
@@ -87,6 +92,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
         val WORK_CAL = stringPreferencesKey("work_calendar")
         val ALERTS_CAL = stringPreferencesKey("alerts_calendar")
         val CAMERA_API = stringPreferencesKey("camera_api")
+        val AUTO_START = booleanPreferencesKey("auto_start")
         val DEVICE_ID = stringPreferencesKey("mobile_app_device_id")
         val WEBHOOK_ID = stringPreferencesKey("mobile_app_webhook_id")
         val URL = stringPreferencesKey("url")

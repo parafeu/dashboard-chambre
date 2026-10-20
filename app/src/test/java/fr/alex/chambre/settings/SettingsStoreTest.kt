@@ -113,6 +113,14 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun auto_start_is_off_by_default_and_round_trips() = runBlocking {
+        val s = store()
+        assertEquals(false, s.settings.first().autoStart)
+        s.save(Settings(token = "t", autoStart = true))
+        assertEquals(true, s.settings.first().autoStart)
+    }
+
+    @Test
     fun unknown_room_falls_back_to_chambre() = runBlocking {
         val ds = PreferenceDataStoreFactory.create(scope = scope) { tmp.root.resolve("raw.preferences_pb") }
         ds.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("room")] = "GARAGE" }

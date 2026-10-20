@@ -1,5 +1,15 @@
 package fr.alex.chambre.settings
 
+import fr.alex.chambre.boot.bootStart
+import fr.alex.chambre.boot.BootStart
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Switch
+import android.provider.Settings as AndroidSettings
+import android.os.Build
+import android.net.Uri
+import android.content.Intent
 import fr.alex.chambre.announce.DeviceCalendar
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -108,6 +118,14 @@ fun SettingsScreen(
     var delayIdx by remember(initial) { mutableIntStateOf(nearestStep(initial.sleepDelaySec)) }
     var minArea by remember(initial) { mutableFloatStateOf(initial.sensitivity) }
     var cameraApi by remember(initial) { mutableStateOf(initial.cameraApi) }
+    var autoStart by remember(initial) { mutableStateOf(initial.autoStart) }
+    val context = LocalContext.current
+    var canOverlay by remember { mutableStateOf(AndroidSettings.canDrawOverlays(context)) }
+    // Coming back from Android's permission screen: check again.
+    LifecycleResumeEffect(Unit) {
+        canOverlay = AndroidSettings.canDrawOverlays(context)
+        onPauseOrDispose { }
+    }
     var room by remember(initial) { mutableStateOf(initial.room) }
     val deviceSlug = if (initial.room == Room.SALON) "salon" else "chambre"
     var workCal by remember(initial) { mutableStateOf(initial.workCalendar) }
@@ -181,6 +199,29 @@ fun SettingsScreen(
                             FilledTonalButton(onClick = onTestVoice) { Text("Tester la voix") }
                         }
                     }
+                    Card("Démarrage", Icons.Filled.PowerSettingsNew) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Démarrage automatique", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Ouvre le dashboard quand la tablette démarre ou après une mise à jour, sans être le lanceur.",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(checked = autoStart, onCheckedChange = { autoStart = it })
+                        }
+                        if (bootStart(autoStart, Build.VERSION.SDK_INT, canOverlay) == BootStart.NEEDS_OVERLAY) {
+                            Text(
+                                "Android demande l'autorisation « Afficher par-dessus d'autres applications » pour ouvrir l'app au démarrage.",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+                            )
+                            FilledTonalButton(onClick = {
+                                context.startActivity(
+                                    Intent(AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)),
+                                )
+                            }) { Text("Autoriser") }
+                        }
+                    }
                     Card("Batterie → Home Assistant", Icons.Filled.BatteryChargingFull) {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Tile("Niveau", battery?.let { "${it.levelPct} %" } ?: "–", Modifier.weight(1f))
@@ -233,7 +274,7 @@ fun SettingsScreen(
                         Button(onClick = {
                             onSave(
                                 Settings(
-                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi,
+                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart,
                                     room = room, workCalendar = workCal, alertsCalendar = alertsCal,
                                 ),
                             )
