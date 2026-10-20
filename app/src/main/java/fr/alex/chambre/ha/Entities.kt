@@ -85,4 +85,5 @@ fun entitiesFor(room: Room): List<String> = when (room) {
             listOf(Entities.KITCHEN_COVER, Entities.SHOPPING_LIST, Entities.KITCHEN_TABLET_PLUG) + Entities.KITCHEN_TIMERS +
             Entities.KITCHEN_TIMERS.flatMap { t -> listOf(5, 10).map { Entities.timerStartScript(t, it) } }
         ).distinct()
+    Room.CUISINE -> listOf(Entities.WEATHER, Entities.KITCHEN_COVER)
 }

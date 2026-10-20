@@ -169,7 +169,7 @@ fun SettingsScreen(
                                     selected = room == r,
                                     onClick = { room = r },
                                     shape = SegmentedButtonDefaults.itemShape(i, Room.entries.size),
-                                ) { Text(if (r == Room.CHAMBRE) "Chambre" else "Salon") }
+                                ) { Text(roomLabel(r)) }
                             }
                         }
                         if (room == Room.SALON) {
@@ -423,4 +423,10 @@ private fun CalendarPicker(label: String, selected: String, calendars: List<Devi
             }
         }
     }
+}
+
+private fun roomLabel(r: Room) = when (r) {
+    Room.CHAMBRE -> "Chambre"
+    Room.SALON -> "Salon"
+    Room.CUISINE -> "Cuisine"
 }

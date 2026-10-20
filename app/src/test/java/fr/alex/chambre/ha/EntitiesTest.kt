@@ -30,6 +30,11 @@ class EntitiesTest {
     }
 
     @Test
+    fun cuisine_follows_the_weather_and_the_kitchen_shutter_only() {
+        assertEquals(listOf(Entities.WEATHER, "cover.volet_cuisine"), entitiesFor(Room.CUISINE))
+    }
+
+    @Test
     fun salon_room_has_no_half_script() {
         assertEquals("cover.volet_salon", Entities.SALON_ROOM.cover)
         assertEquals(null, Entities.SALON_ROOM.halfScript)
