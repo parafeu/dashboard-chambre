@@ -70,18 +70,16 @@ class CameraMotionSource(
         }
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
+            // CameraX failing to initialise (old or flaky HALs) must not stop Camera1, which does without it.
             try {
-                val p = future.get().also { provider = it }
-                if (!p.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {
-                    Log.w(TAG, "No front camera: sleep on touch only")
-                    return@addListener
-                }
-                ready = true
-                lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
-                applyApi()
+                val p = future.get()
+                if (p.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) provider = p else Log.w(TAG, "CameraX sees no front camera")
             } catch (e: Exception) {
-                Log.w(TAG, "Camera unavailable: sleep on touch only", e)
+                Log.w(TAG, "CameraX unavailable", e)
             }
+            ready = true
+            lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+            applyApi()
         }, ContextCompat.getMainExecutor(context))
     }
 
@@ -93,14 +91,14 @@ class CameraMotionSource(
     }
 
     private fun applyApi() {
-        val p = provider ?: return
         val a = api ?: return
+        val p = provider
         if (legacyUsed) legacy.close()
-        p.unbindAll()
+        p?.unbindAll()
         blankRequested = true // a new source: relearn the background
         Log.i(TAG, "Motion detection with $a")
         when (a) {
-            CameraApi.CAMERAX -> bind(p)
+            CameraApi.CAMERAX -> if (p != null) bind(p) else Log.w(TAG, "CameraX unavailable: try Camera1 in the settings")
             CameraApi.CAMERA1 -> if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) openLegacy()
         }
     }

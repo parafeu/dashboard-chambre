@@ -1,7 +1,7 @@
 # Dashboard Chambre
 
 App Android native (Jetpack Compose, Material 3) qui remplace Fully Kiosk + Lovelace sur la
-Galaxy Tab S2 (LineageOS, Android 11) de la chambre : contrôle lumière / volet / scènes,
+Galaxy Tab S2 (LineageOS, Android 9 minimum) de la chambre : contrôle lumière / volet / scènes,
 heure et météo, veille de l'écran pilotée par la caméra frontale.
 
 La même app sert aussi de **dashboard global du salon** (Réglages → « Pièce de cette tablette » → Salon) :
@@ -40,7 +40,8 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
    adb install -r -g app/build/outputs/apk/release/app-release.apk
    ```
    `-g` accorde directement la permission caméra.
-3. Appuyer sur le bouton **Accueil** → choisir **Chambre** → **Toujours**.
+3. Ouvrir l'app **Chambre** ; dans les Réglages → Démarrage, activer **Démarrage automatique** pour qu'elle
+   revienne seule après un redémarrage (Android 10+ : bouton « Autoriser »).
 4. Désactiver Fully Kiosk (ou le désinstaller) pour qu'il ne reprenne pas la main au démarrage.
 5. Dans Home Assistant : profil → **Sécurité** → **Jetons d'accès longue durée** → créer un jeton.
 6. Dans l'app : saisir l'URL (`http://homeassistant.local:8123` ou l'IP) et le jeton →
@@ -55,6 +56,9 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
 - **Détection de mouvement** (OpenCV, soustraction de fond MOG2) : une zone qui bouge sur au moins 2 images
   sur 3 réveille l'écran ; les changements de lumière (plus de 60 % de l'image d'un coup) et la propre
   lumière de l'écran sont ignorés. Réglage « Taille minimale d'un mouvement » (3 % par défaut).
+- **Démarrage automatique** (Réglages → Démarrage) : ouvre le dashboard au démarrage de la tablette et
+  après une mise à jour (l'app n'est pas un lanceur). Android 10+ demande l'autorisation « Afficher par-dessus
+  d'autres applications » (bouton « Autoriser » dans la carte) ; Android 9 n'en a pas besoin.
 - **API caméra** (Réglages) : CameraX par défaut ; **Camera1** pour les tablettes dont l'aperçu reste
   « indisponible » avec CameraX (pilote caméra ancien, ex. Galaxy Tab S2 SM-T813).
 - **Météo** : toucher le bloc météo pour passer de « Heures » (7 prochaines heures) à « Semaine » (6 jours) ;

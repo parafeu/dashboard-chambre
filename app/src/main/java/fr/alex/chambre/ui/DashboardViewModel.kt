@@ -13,7 +13,7 @@ import fr.alex.chambre.battery.BatteryMonitor
 import fr.alex.chambre.battery.BatteryReporter
 import fr.alex.chambre.ha.DeviceInfo
 import fr.alex.chambre.ha.MobileAppClient
-import androidx.datastore.preferences.preferencesDataStore
+import fr.alex.chambre.settings.dataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.alex.chambre.ha.Entities
@@ -38,7 +38,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
-private val Context.dataStore by preferencesDataStore(name = "settings")
 
 /** Wires settings, the Home Assistant connection, the controller and presence together. */
 class DashboardViewModel(app: Application) : AndroidViewModel(app) {
