@@ -4,7 +4,7 @@ App Android native (Jetpack Compose, Material 3) qui remplace Fully Kiosk + Love
 Galaxy Tab S2 (LineageOS, Android 9 minimum) de la chambre : contrôle lumière / volet / scènes,
 heure et météo, veille de l'écran pilotée par la caméra frontale.
 
-La même app sert aussi de **dashboard global du salon** (Réglages → « Pièce de cette tablette » → Salon) :
+La même app sert aussi de **dashboard de la cuisine** (recettes Mealie) et de **dashboard global du salon** (Réglages → « Pièce de cette tablette » → Salon) :
 volet et lumières du salon, onglets Cuisine et Chambre, et annonces vocales de l'agenda.
 
 Specs : `docs/superpowers/specs/2026-10-16-dashboard-chambre-design.md`,
@@ -89,6 +89,18 @@ Les agendas ne passent pas par Home Assistant : l'app lit ceux **synchronisés s
 
 Si la voix ne sort pas, installer « Services vocaux Google » (ou RHVoice) et une voix française ;
 le volume des annonces suit le volume multimédia.
+
+## Mode cuisine
+
+Réglages → Pièce : **Cuisine**, puis l'**adresse Mealie** et une **clé API Mealie** (Mealie → profil → Clés API).
+
+- Volet de la cuisine, et les recettes Mealie (lecture seule) : recherche, filtres (Moins de 45 min, catégories),
+  bandeau « Au menu » quand un repas est planifié dans Mealie aujourd'hui.
+- Fiche recette : portions − / + (quantités recalculées pour les ingrédients analysés par Mealie), ingrédients à
+  cocher, étapes une par une. Chaque durée du texte (« 10 minutes », « 30 à 45 secondes ») est une pastille ⏱ :
+  un appui crée une minuterie dans l'horloge Android. L'écran ne se met pas en veille pendant une recette.
+- Les ingrédients « non analysés » dans Mealie s'affichent tels quels : utiliser « Analyser les ingrédients » dans
+  Mealie pour qu'ils suivent les portions.
 
 ## Batterie dans Home Assistant
 
