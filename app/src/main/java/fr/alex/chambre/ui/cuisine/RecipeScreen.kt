@@ -68,6 +68,7 @@ import fr.alex.chambre.mealie.findTimers
 import fr.alex.chambre.mealie.formatQuantity
 import fr.alex.chambre.mealie.ingredientLine
 import fr.alex.chambre.mealie.minutesLabel
+import fr.alex.chambre.mealie.stepHeading
 
 private val CURRENT_STEP_BG = Color(0xFF6A3B00)
 private val CURRENT_STEP_TEXT = Color(0xFFFFF3E6)
@@ -181,7 +182,7 @@ private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, Str
                                     ) {
                                         Text("${i + 1}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (on) colors.onPrimary else colors.onSurface)
                                     }
-                                    val title = step.title.ifBlank { step.text.lineSequence().first() }
+                                    val title = stepHeading(step, current = on)
                                     Text(
                                         title,
                                         fontSize = if (on) 15.sp else 17.sp,

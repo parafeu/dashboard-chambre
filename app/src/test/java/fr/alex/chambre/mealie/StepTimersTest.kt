@@ -33,3 +33,18 @@ class StepTimersTest {
         assertTrue(findTimers("Couper en dés de 1 cm, ajouter 5 sachets, 180 °C, pour 4 personnes, 2 hamburgers.").isEmpty())
     }
 }
+
+class StepHeadingTest {
+    @Test
+    fun a_titled_step_keeps_its_title() {
+        assertEquals("Lancer le riz", stepHeading(Step("Lancer le riz", "Rincer le riz."), current = true))
+        assertEquals("Lancer le riz", stepHeading(Step("Lancer le riz", "Rincer le riz."), current = false))
+    }
+
+    @Test
+    fun an_untitled_step_shows_its_first_line_only_when_folded() {
+        val step = Step("", "Épluchez l'oignon.\nCoupez la carotte.")
+        assertEquals("Épluchez l'oignon.", stepHeading(step, current = false))
+        assertEquals("", stepHeading(step, current = true)) // its full text is shown below: no repeated line
+    }
+}

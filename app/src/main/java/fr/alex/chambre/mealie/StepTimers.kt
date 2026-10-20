@@ -42,3 +42,10 @@ fun timerLabel(seconds: Int): String {
         else -> "$m min"
     }
 }
+
+/** The line shown beside a step's number: its title, else its first line when folded (the open step shows its text). */
+fun stepHeading(step: Step, current: Boolean): String = when {
+    step.title.isNotBlank() -> step.title
+    current -> ""
+    else -> step.text.lineSequence().first()
+}
