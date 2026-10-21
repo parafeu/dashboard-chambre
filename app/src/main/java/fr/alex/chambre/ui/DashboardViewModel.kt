@@ -81,14 +81,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         enabled = { deviceFeatures(it, formFactor).mealie },
     )
 
-    fun startTimer(timer: String, minutes: Int) {
-        viewModelScope.launch { ha.call("script", "turn_on", Entities.timerStartScript(timer, minutes)) }
-    }
-
-    fun cancelTimer(timer: String) {
-        viewModelScope.launch { ha.call("timer", "cancel", timer) }
-    }
-
     val presence = PresenceController(
         viewModelScope,
         sleepDelayMs = { (settings.value?.sleepDelaySec ?: Settings().sleepDelaySec) * 1_000L },

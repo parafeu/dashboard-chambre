@@ -175,7 +175,7 @@ fun SettingsScreen(
                                 ) { Text(roomLabel(r)) }
                             }
                         }
-                        if (room == Room.CUISINE) {
+                        if (room == Room.CUISINE || room == Room.SALON) {
                             Text(
                                 "Recettes Mealie (lecture seule) : adresse du serveur et clé API (Mealie → profil → Clés API).",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

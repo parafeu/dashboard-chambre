@@ -1,7 +1,9 @@
 package fr.alex.chambre.mealie
 
+import fr.alex.chambre.settings.FormFactor
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.settings.Settings
+import fr.alex.chambre.settings.deviceFeatures
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
@@ -38,7 +40,11 @@ class CuisineControllerTest {
     private val cuisine = Settings(token = "t", room = Room.CUISINE, mealieUrl = "https://m.example", mealieToken = "k")
     private val settings = MutableStateFlow(cuisine)
 
-    private fun TestScope.start() = CuisineController(backgroundScope, settings, apiFor = { s -> api.takeIf { s.mealieToken.isNotBlank() } })
+    private fun TestScope.start() = CuisineController(
+        backgroundScope, settings,
+        apiFor = { s -> api.takeIf { s.mealieToken.isNotBlank() } },
+        enabled = { deviceFeatures(it, FormFactor.TABLET).mealie },
+    )
         .also { runCurrent() }
 
     @Test
@@ -50,8 +56,16 @@ class CuisineControllerTest {
     }
 
     @Test
-    fun other_rooms_never_call_mealie() = runTest {
+    fun the_living_room_loads_recipes_for_its_cuisine_tab() = runTest {
         settings.value = cuisine.copy(room = Room.SALON)
+        val c = start()
+        assertEquals(1, api.calls)
+        assertEquals(listOf("dahl", "lasagnes"), c.recipes.value.map { it.slug })
+    }
+
+    @Test
+    fun the_bedroom_never_calls_mealie() = runTest {
+        settings.value = cuisine.copy(room = Room.CHAMBRE)
         val c = start()
         advanceTimeBy(2 * 3_600_000L)
         runCurrent()

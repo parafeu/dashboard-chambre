@@ -66,6 +66,8 @@ import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.temperature
 import fr.alex.chambre.presence.Presence
 import fr.alex.chambre.settings.Settings
+import fr.alex.chambre.ui.cuisine.CuisinePanels
+import fr.alex.chambre.ui.cuisine.CuisineRecipeOverlay
 import fr.alex.chambre.ui.ChambrePanels
 import fr.alex.chambre.ui.CoverPanel
 import fr.alex.chambre.ui.DashboardViewModel
@@ -93,28 +95,29 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
     val tick by vm.announcements.state.collectAsStateWithLifecycle()
     val upcoming by vm.announcements.upcoming.collectAsStateWithLifecycle()
     val calendarError by vm.announcements.error.collectAsStateWithLifecycle()
+    val opened by vm.cuisine.opened.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
 
     var tab by remember { mutableStateOf(SalonTab.SALON) }
     var touches by remember { mutableIntStateOf(0) }
-    LaunchedEffect(tab, touches) {
-        if (tab != SalonTab.SALON) {
+    // Never while a recipe is open: cooking can take longer than 2 minutes.
+    LaunchedEffect(tab, touches, opened != null) {
+        if (tab != SalonTab.SALON && opened == null) {
             delay(BACK_TO_SALON_MS)
             tab = SalonTab.SALON
         }
     }
     var now by remember { mutableStateOf(Instant.now()) }
-    LaunchedEffect(tab) {
+    LaunchedEffect(Unit) {
         while (true) {
             now = Instant.now()
-            delay(if (tab == SalonTab.CUISINE) 1_000 else 30_000)
+            delay(30_000)
         }
     }
-    // An announcement on screen keeps the tablet awake until it is dismissed.
-    LaunchedEffect(tick.alerts.isNotEmpty() || tick.banner != null) {
-        vm.presence.hold = tick.alerts.isNotEmpty() || tick.banner != null
-    }
+    // An announcement on screen, or an open recipe, keeps the tablet awake.
+    val hold = tick.alerts.isNotEmpty() || tick.banner != null || opened != null
+    LaunchedEffect(hold) { vm.presence.hold = hold }
 
     val online = conn == ConnState.CONNECTED
     val weather = entities[Entities.WEATHER]
@@ -129,43 +132,42 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
             }
         },
     ) {
-        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            HeaderBar(
-                currentCondition = weather?.state?.takeUnless { it == "unavailable" || it == "unknown" },
-                currentTemp = weather?.temperature,
-                hourly = forecast,
-                daily = forecastDaily,
-                online = online,
-                battery = battery,
-                onOpenSettings = onOpenSettings,
-            )
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                RoomRail(
-                    selected = tab,
-                    onSelect = { tab = it },
-                    summaries = mapOf(
-                        SalonTab.SALON to roomSummary(entities[Entities.SALON_ROOM.light], entities[Entities.SALON_ROOM.cover], plural = true),
-                        SalonTab.CUISINE to kitchenSummary(entities[Entities.KITCHEN_COVER], Entities.KITCHEN_TIMERS.map { entities[it] }),
-                        SalonTab.CHAMBRE to roomSummary(entities[Entities.LIGHT], entities[Entities.COVER], plural = false),
-                    ),
-                    temperature = entities[Entities.SALON_TEMPERATURE]?.state,
-                    humidity = entities[Entities.SALON_HUMIDITY]?.state,
-                    modifier = Modifier.width(212.dp).fillMaxHeight(),
+        if (!CuisineRecipeOverlay(vm, snackbar)) {
+            Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                HeaderBar(
+                    currentCondition = weather?.state?.takeUnless { it == "unavailable" || it == "unknown" },
+                    currentTemp = weather?.temperature,
+                    hourly = forecast,
+                    daily = forecastDaily,
+                    online = online,
+                    battery = battery,
+                    onOpenSettings = onOpenSettings,
                 )
-                when (tab) {
-                    SalonTab.SALON -> Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        AgendaPanel(upcoming, settings.workCalendar, now, calendarError, Modifier.weight(1f))
-                        CoverPanel(entities[Entities.SALON_ROOM.cover], online, vm.salonController, Modifier.width(236.dp))
-                        LightPanel(
-                            entities[Entities.SALON_ROOM.light], online, vm.salonController, Modifier.width(236.dp),
-                            colors = false, compact = true, title = "Lumières",
-                        )
-                    }
-                    SalonTab.CUISINE -> CuisineScreen(
-                        entities, online, vm.kitchenController, now,
-                        onStartTimer = vm::startTimer, onCancelTimer = vm::cancelTimer, modifier = Modifier.weight(1f),
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    RoomRail(
+                        selected = tab,
+                        onSelect = { tab = it },
+                        summaries = mapOf(
+                            SalonTab.SALON to roomSummary(entities[Entities.SALON_ROOM.light], entities[Entities.SALON_ROOM.cover], plural = true),
+                            SalonTab.CUISINE to kitchenSummary(entities[Entities.KITCHEN_COVER], Entities.KITCHEN_TIMERS.map { entities[it] }),
+                            SalonTab.CHAMBRE to roomSummary(entities[Entities.LIGHT], entities[Entities.COVER], plural = false),
+                        ),
+                        temperature = entities[Entities.SALON_TEMPERATURE]?.state,
+                        humidity = entities[Entities.SALON_HUMIDITY]?.state,
+                        modifier = Modifier.width(212.dp).fillMaxHeight(),
                     )
-                    SalonTab.CHAMBRE -> ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f), narrow = true)
+                    when (tab) {
+                        SalonTab.SALON -> Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                            AgendaPanel(upcoming, settings.workCalendar, now, calendarError, Modifier.weight(1f))
+                            CoverPanel(entities[Entities.SALON_ROOM.cover], online, vm.salonController, Modifier.width(236.dp))
+                            LightPanel(
+                                entities[Entities.SALON_ROOM.light], online, vm.salonController, Modifier.width(236.dp),
+                                colors = false, compact = true, title = "Lumières",
+                            )
+                        }
+                        SalonTab.CUISINE -> CuisinePanels(vm, Modifier.weight(1f))
+                        SalonTab.CHAMBRE -> ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f), narrow = true)
+                    }
                 }
             }
         }
