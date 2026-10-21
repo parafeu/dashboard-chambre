@@ -90,5 +90,16 @@ class WidgetRepository(
 object WidgetSnapshots {
     private val flows = WidgetRoom.entries.associateWith { kotlinx.coroutines.flow.MutableStateFlow<WidgetSnapshot?>(null) }
     fun flow(room: WidgetRoom): kotlinx.coroutines.flow.StateFlow<WidgetSnapshot?> = flows.getValue(room)
-    fun publish(room: WidgetRoom, snapshot: WidgetSnapshot) { flows.getValue(room).value = snapshot }
+    private val publishedAt = java.util.concurrent.ConcurrentHashMap<WidgetRoom, Long>()
+
+    fun publish(room: WidgetRoom, snapshot: WidgetSnapshot, at: Long = System.currentTimeMillis()) {
+        publishedAt[room] = at
+        flows.getValue(room).value = snapshot
+    }
+
+    /** The snapshot published less than [maxAgeMs] ago (a tap or refresh just read HA), or null. */
+    fun recent(room: WidgetRoom, now: Long = System.currentTimeMillis(), maxAgeMs: Long = 5_000): WidgetSnapshot? {
+        val at = publishedAt[room] ?: return null
+        return flows.getValue(room).value.takeIf { now - at < maxAgeMs }
+    }
 }

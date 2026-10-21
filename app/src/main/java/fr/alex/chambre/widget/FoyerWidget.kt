@@ -58,7 +58,8 @@ private val CHIP_ON = Color(0x2E000000)
 /** One room's widget (H1 / SA / KA): title row with the open-app button, then a tile per device. */
 abstract class FoyerWidget(private val room: WidgetRoom) : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val initial = widgetRepository(context).refresh(room).also { WidgetSnapshots.publish(room, it) }
+        // Just read by the tap or refresh that asked for this redraw: don't ask HA a second time.
+        val initial = WidgetSnapshots.recent(room) ?: widgetRepository(context).refresh(room).also { WidgetSnapshots.publish(room, it) }
         provideContent {
             val live by WidgetSnapshots.flow(room).collectAsState()
             WidgetContent(context, room, live ?: initial)
