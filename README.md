@@ -131,7 +131,7 @@ couleurs du fond d'écran (Material You, Android 12+ ; Ambre sur les tablettes) 
 - Le bouton ↗ en haut à droite (ou le titre) ouvre Foyer sur la pièce.
 
 Les widgets parlent à Home Assistant directement (API REST, mêmes URL et jeton que l'app), même app fermée. Ils se
-mettent à jour après chaque appui, puis quand l'appareil a confirmé (2 s et 6 s après pour une lumière, 3 s et 20 s pour un volet), toutes les 15 min, et quand on quitte
+changent d'état dès l'appui, puis vérifient l'état réel en arrière-plan (2 s et 6 s après pour une lumière, 3 s et 20 s pour un volet ; si la commande échoue, retour au dernier état réel, grisé), toutes les 15 min, et quand on quitte
 l'app. Si Home Assistant ne répond pas, ils gardent le dernier état connu, grisé.
 
 ## Batterie dans Home Assistant
