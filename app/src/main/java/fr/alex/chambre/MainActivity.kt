@@ -39,6 +39,7 @@ import fr.alex.chambre.presence.Presence
 import fr.alex.chambre.presence.TouchGate
 import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.FormFactor
+import fr.alex.chambre.settings.formFactorFor
 import fr.alex.chambre.ui.phone.EXTRA_TAB
 import fr.alex.chambre.ui.phone.PhoneApp
 import fr.alex.chambre.ui.phone.TabRequest
@@ -72,11 +73,14 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Wall tablets in landscape, the phone layout in portrait: asked before the window exists, so no flash.
+        requestedOrientation = when (formFactorFor(resources.configuration.smallestScreenWidthDp)) {
+            FormFactor.PHONE -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            FormFactor.TABLET -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         super.onCreate(savedInstanceState)
         // The app is always dark: light status / navigation bar icons.
         enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
-        // Wall tablets in landscape; the phone layout is portrait.
-        requestedOrientation = if (phone) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         startTab.value = TabRequest.from(intent.getStringExtra(EXTRA_TAB))
         if (phone) {
             // A normal phone app; the screen only stays on while a recipe is open, as on the tablet.
@@ -163,7 +167,7 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         if (phone) vm.foreground.value = false
         // What was changed in the app shows on the home-screen widgets when you leave it.
-        WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build())
+        if (phone) WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build())
     }
 
     override fun onDestroy() {
