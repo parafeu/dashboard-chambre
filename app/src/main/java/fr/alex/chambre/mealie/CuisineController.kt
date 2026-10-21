@@ -34,6 +34,8 @@ class CuisineController(
     settings: Flow<Settings>,
     private val apiFor: (Settings) -> MealieApi?,
     private val refreshMs: Long = 30 * 60_000L,
+    /** Whether this device reads Mealie (see deviceFeatures). */
+    private val enabled: (Settings) -> Boolean = { it.room == Room.CUISINE },
 ) {
     private val _recipes = MutableStateFlow<List<RecipeSummary>>(emptyList())
     val recipes: StateFlow<List<RecipeSummary>> = _recipes.asStateFlow()
@@ -55,7 +57,7 @@ class CuisineController(
     init {
         scope.launch {
             settings
-                .map { if (it.room == Room.CUISINE) it else null }
+                .map { if (enabled(it)) it else null }
                 .distinctUntilChanged { a, b -> a?.mealieUrl == b?.mealieUrl && a?.mealieToken == b?.mealieToken && (a == null) == (b == null) }
                 .collectLatest { s ->
                     api = null

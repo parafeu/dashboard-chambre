@@ -14,11 +14,14 @@ import fr.alex.chambre.battery.BatteryReporter
 import fr.alex.chambre.ha.DeviceInfo
 import fr.alex.chambre.ha.MobileAppClient
 import fr.alex.chambre.settings.dataStore
+import fr.alex.chambre.settings.DeviceFeatures
+import fr.alex.chambre.settings.FormFactor
+import fr.alex.chambre.settings.deviceFeatures
+import fr.alex.chambre.settings.formFactorFor
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.HaConfig
-import fr.alex.chambre.ha.entitiesFor
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ha.HaRepository
 import fr.alex.chambre.presence.PresenceController
@@ -30,6 +33,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -48,13 +52,20 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** null until the stored settings are loaded. */
     val settings: StateFlow<Settings?> = store.settings.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /** Read once: a phone stays a phone (split screen or rotation never turns tablet features on). */
+    val formFactor: FormFactor = formFactorFor(app.resources.configuration.smallestScreenWidthDp)
+
+    /** What runs on this device; null until the settings are loaded. */
+    val features: StateFlow<DeviceFeatures?> =
+        settings.map { it?.let { s -> deviceFeatures(s, formFactor) } }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val haConfig = settings.filterNotNull()
+        .map { s -> deviceFeatures(s, formFactor).let { f -> HaConfig(s.url, s.token, f.entities, timerEvents = f.timerEvents) } }
+        .distinctUntilChanged()
+
     private val client = OkHttpClient.Builder().pingInterval(30, TimeUnit.SECONDS).build()
 
-    val ha = HaRepository(
-        viewModelScope,
-        client,
-        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
-    )
+    val ha = HaRepository(viewModelScope, client, haConfig)
 
     val controller = DashboardController(viewModelScope, ha)
 
@@ -67,6 +78,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope,
         settings.filterNotNull(),
         apiFor = { s -> if (s.mealieUrl.isBlank() || s.mealieToken.isBlank()) null else MealieClient(s.mealieUrl, s.mealieToken, client) },
+        enabled = { deviceFeatures(it, formFactor).mealie },
     )
 
     fun startTimer(timer: String, minutes: Int) {
@@ -80,14 +92,15 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val presence = PresenceController(
         viewModelScope,
         sleepDelayMs = { (settings.value?.sleepDelaySec ?: Settings().sleepDelaySec) * 1_000L },
-    ).also { it.start() }
+    ).also { if (formFactor == FormFactor.TABLET) it.start() }
 
     val battery = BatteryMonitor(app).also { it.start() }
 
     val batteryReporter = BatteryReporter(
         viewModelScope,
         battery.state,
-        settings.filterNotNull().map { HaConfig(it.url, it.token, entitiesFor(it.room), timerEvents = it.room == Room.SALON) }.distinctUntilChanged(),
+        // The phone never registers with the Mobile App integration.
+        haConfig.filter { formFactor == FormFactor.TABLET },
         MobileAppClient(client),
         store,
         deviceInfo = { id ->
@@ -119,6 +132,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         AnnouncementStore(app.dataStore),
         speaker,
         wake = { presence.onMotion() },
+        enabled = { deviceFeatures(it, formFactor).announcements },
     )
 
     /** Test button in the settings. */
