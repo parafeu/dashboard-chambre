@@ -14,13 +14,15 @@ import java.util.concurrent.TimeUnit
 class WidgetRefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val room = inputData.getString(ROOM)?.let { r -> WidgetRoom.entries.firstOrNull { it.name == r } }
-        if (room != null) refreshWidget(applicationContext, room) else refreshAllWidgets(applicationContext)
+        if (room != null) refreshWidget(applicationContext, room, lastCheck = inputData.getBoolean(LAST, true))
+        else refreshAllWidgets(applicationContext)
         return Result.success()
     }
 
     companion object {
         private const val NAME = "foyer-widget-refresh"
         private const val ROOM = "room"
+        private const val LAST = "last"
 
         fun schedule(context: Context) {
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
@@ -39,7 +41,7 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
                     androidx.work.ExistingWorkPolicy.REPLACE,
                     androidx.work.OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
                         .setInitialDelay(s, TimeUnit.SECONDS)
-                        .setInputData(androidx.work.workDataOf(ROOM to room.name))
+                        .setInputData(androidx.work.workDataOf(ROOM to room.name, LAST to (i == delaysSec.lastIndex)))
                         .build(),
                 )
             }
@@ -67,10 +69,16 @@ class NoWidgetCheck(context: Context, params: WorkerParameters) : CoroutineWorke
 }
 
 /** Redraws one room's placed widgets from Home Assistant. */
-suspend fun refreshWidget(context: Context, room: WidgetRoom) {
+suspend fun refreshWidget(context: Context, room: WidgetRoom, lastCheck: Boolean = true) {
     val widget = widgetFor(room)
     if (GlanceAppWidgetManager(context).getGlanceIds(widget.javaClass).isEmpty()) return
-    WidgetSnapshots.publish(room, widgetRepository(context).refresh(room))
+    var snap = widgetRepository(context).refresh(room)
+    // A follow-up after a tap: keep showing the prediction until the device has reported (see settle).
+    WidgetSnapshots.pending(room)?.let { tap ->
+        if (!snap.stale) snap = snap.copy(states = settle(tap.before, tap.predicted, snap.states, lastCheck))
+        if (lastCheck) WidgetSnapshots.setPending(room, null)
+    }
+    WidgetSnapshots.publish(room, snap)
     widget.updateAll(context)
 }
 

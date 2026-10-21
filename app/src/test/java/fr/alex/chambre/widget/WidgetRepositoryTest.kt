@@ -111,7 +111,7 @@ class WidgetRepositoryTest {
     fun `a refused command keeps the last states dimmed`() = runBlocking {
         repo().refresh(WidgetRoom.CHAMBRE)
         failPosts = 500
-        val snap = repo().act(WidgetRoom.CHAMBRE, WidgetAction.ToggleLight)
+        val snap = repo().act(WidgetRoom.CHAMBRE, WidgetAction.ToggleLight)!!
         assertTrue(snap.stale)
         assertEquals("off", snap.states["light.chambre_lumieres"]?.state)
     }
@@ -120,11 +120,29 @@ class WidgetRepositoryTest {
     fun `a wrong token is stale, not a crash`() = runBlocking {
         repo().refresh(WidgetRoom.CHAMBRE)
         failPosts = 401
-        assertTrue(repo().act(WidgetRoom.CHAMBRE, WidgetAction.CoverClose).stale)
+        assertTrue(repo().act(WidgetRoom.CHAMBRE, WidgetAction.CoverClose)!!.stale)
+    }
+
+    @Test
+    fun `the widget shows the expected state before HA answers`() = runBlocking {
+        repo().refresh(WidgetRoom.CHAMBRE)
+        val shown = repo().optimistic(WidgetRoom.CHAMBRE, WidgetAction.ToggleLight)
+        assertEquals("on", shown.states["light.chambre_lumieres"]?.state)
+        assertFalse(shown.stale)
+        assertEquals("off", store.saved[WidgetRoom.CHAMBRE]!!["light.chambre_lumieres"]?.state) // the store keeps the truth
+    }
+
+    @Test
+    fun `a sent command is not read back at once (HA may still report the old state)`() = runBlocking {
+        repo().refresh(WidgetRoom.CHAMBRE)
+        val before = server.requestCount
+        org.junit.Assert.assertNull(repo().act(WidgetRoom.CHAMBRE, WidgetAction.ToggleLight))
+        assertEquals(before + 1, server.requestCount) // the POST only
     }
 
     @Test
     fun `tapping an open shutter closes it`() = runBlocking {
+        repo().refresh(WidgetRoom.CHAMBRE) // the tile the user tapped shows it open
         repo().act(WidgetRoom.CHAMBRE, WidgetAction.CoverTapAction)
         assertEquals("cover/close_cover", posts.single().first)
     }

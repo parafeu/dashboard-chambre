@@ -97,3 +97,51 @@ class FollowUpTest {
         assertEquals(listOf(3L, 20L), followUpDelaysSec(WidgetAction.CoverClose))
     }
 }
+
+class PredictTest {
+    private val room = WidgetRoom.CHAMBRE
+    private fun states(vararg s: EntityState) = s.associateBy { it.entityId }
+    private fun l(state: String, b: Int? = null) = EntityState(room.light!!, state, buildJsonObject { b?.let { put("brightness", JsonPrimitive(it)) } })
+    private fun c(state: String, p: Int?) = EntityState(room.cover, state, buildJsonObject { p?.let { put("current_position", JsonPrimitive(it)) } })
+
+    @Test
+    fun `toggling shows the light's new state at once`() {
+        assertEquals("Éteinte", lightText(predict(states(l("on", 102)), room, WidgetAction.ToggleLight)[room.light]))
+        assertTrue(lightIsOn(predict(states(l("off")), room, WidgetAction.ToggleLight)[room.light]))
+    }
+
+    @Test
+    fun `a brightness step shows the new level`() {
+        assertEquals("50 %", lightText(predict(states(l("on", 102)), room, WidgetAction.StepLight(10))[room.light]))
+        assertEquals("10 %", lightText(predict(states(l("off")), room, WidgetAction.StepLight(-10))[room.light]))
+    }
+
+    @Test
+    fun `a shutter shows it is moving`() {
+        assertEquals("Fermeture…", coverText(predict(states(c("open", 100)), room, WidgetAction.CoverClose)[room.cover]))
+        assertEquals("Ouverture…", coverText(predict(states(c("closed", 0)), room, WidgetAction.CoverTapAction)[room.cover]))
+        assertEquals("Ouvert à 40 %", coverText(predict(states(c("closing", 40)), room, WidgetAction.CoverStop)[room.cover]))
+    }
+
+    @Test
+    fun `nothing known, nothing predicted`() {
+        assertEquals(emptyMap<String, EntityState>(), predict(emptyMap(), room, WidgetAction.ToggleLight))
+    }
+}
+
+class SettleTest {
+    private fun l(state: String) = EntityState("light.x", state, buildJsonObject { })
+    private val before = mapOf("light.x" to l("on"))
+    private val predicted = mapOf("light.x" to l("off"))
+
+    @Test
+    fun `an early check that still sees the old state keeps the prediction`() {
+        assertEquals(predicted, settle(before, predicted, read = mapOf("light.x" to l("on")), last = false))
+    }
+
+    @Test
+    fun `once HA has moved, or at the last check, HA wins`() {
+        assertEquals(mapOf("light.x" to l("off")), settle(before, predicted, read = mapOf("light.x" to l("off")), last = false))
+        assertEquals(mapOf("light.x" to l("on")), settle(before, predicted, read = mapOf("light.x" to l("on")), last = true))
+    }
+}

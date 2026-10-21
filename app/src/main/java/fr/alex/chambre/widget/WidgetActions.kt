@@ -45,9 +45,20 @@ class WidgetActionCallback : ActionCallback {
             else -> return
         }
         val repo = widgetRepository(context)
-        WidgetSnapshots.publish(room, repo.act(room, action))
         val widget = widgetFor(room)
+        // What the widget shows now (a quick second tap builds on the first one's prediction).
+        val base = WidgetSnapshots.flow(room).value?.takeIf { it.configured }?.states
+        // Show the expected state at once, then send the command.
+        val shown = repo.optimistic(room, action, base)
+        WidgetSnapshots.setPending(room, PendingTap(before = base ?: repo.stored(room), predicted = shown.states))
+        WidgetSnapshots.publish(room, shown)
         widget.update(context, glanceId)
+        repo.act(room, action, base)?.let { failed ->
+            WidgetSnapshots.setPending(room, null)
+            WidgetSnapshots.publish(room, failed)
+            widget.update(context, glanceId)
+            return
+        }
         // HA reports the new state a moment later (a light fading out, a shutter moving). Scheduled, never awaited
         // here: the callback runs in a broadcast and holds every later widget tap until it returns.
         WidgetRefreshWorker.followUp(context, room, followUpDelaysSec(action))
