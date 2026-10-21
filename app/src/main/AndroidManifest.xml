@@ -41,6 +41,18 @@
             </intent-filter>
         </activity>
 
+        <receiver android:name=".widget.ChambreWidgetReceiver" android:exported="true" android:label="Chambre">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_chambre" />
+        </receiver>
+        <receiver android:name=".widget.SalonWidgetReceiver" android:exported="true" android:label="Salon">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_salon" />
+        </receiver>
+        <receiver android:name=".widget.CuisineWidgetReceiver" android:exported="true" android:label="Cuisine">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_cuisine" />
+        </receiver>
         <receiver
             android:name=".boot.BootReceiver"
             android:exported="true">

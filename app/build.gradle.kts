@@ -79,6 +79,8 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.datastore.preferences)
     implementation(libs.opencv)
+    implementation(libs.glance.appwidget)
+    implementation(libs.work.runtime.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

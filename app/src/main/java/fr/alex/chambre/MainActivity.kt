@@ -43,6 +43,9 @@ import fr.alex.chambre.ui.phone.EXTRA_TAB
 import fr.alex.chambre.ui.phone.PhoneApp
 import fr.alex.chambre.ui.phone.tabFromExtra
 import fr.alex.chambre.ui.salon.SalonTab
+import fr.alex.chambre.widget.WidgetRefreshWorker
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import fr.alex.chambre.settings.SettingsScreen
 import fr.alex.chambre.ui.DashboardScreen
 import fr.alex.chambre.ui.salon.SalonApp
@@ -150,6 +153,12 @@ class MainActivity : ComponentActivity() {
         }
         if (touchGate.shouldConsume(action)) return true
         return super.dispatchTouchEvent(ev)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // What was changed in the app shows on the home-screen widgets when you leave it.
+        WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build())
     }
 
     override fun onDestroy() {

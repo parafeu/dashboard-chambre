@@ -82,3 +82,13 @@ class WidgetRepository(
 
     private fun Settings.configured() = url.isNotBlank() && token.isNotBlank()
 }
+
+/**
+ * The latest snapshot per room, observed by the widgets' compositions: while a Glance session is alive,
+ * update() recomposes it without calling provideGlance again, so fresh states must come through here.
+ */
+object WidgetSnapshots {
+    private val flows = WidgetRoom.entries.associateWith { kotlinx.coroutines.flow.MutableStateFlow<WidgetSnapshot?>(null) }
+    fun flow(room: WidgetRoom): kotlinx.coroutines.flow.StateFlow<WidgetSnapshot?> = flows.getValue(room)
+    fun publish(room: WidgetRoom, snapshot: WidgetSnapshot) { flows.getValue(room).value = snapshot }
+}
