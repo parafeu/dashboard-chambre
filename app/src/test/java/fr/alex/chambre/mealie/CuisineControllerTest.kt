@@ -64,6 +64,22 @@ class CuisineControllerTest {
     }
 
     @Test
+    fun polling_pauses_in_the_background_and_reads_again_on_return() = runTest {
+        val active = MutableStateFlow(true)
+        val c = CuisineController(backgroundScope, settings, apiFor = { api }, active = active)
+        runCurrent()
+        assertEquals(1, api.calls)
+        active.value = false
+        advanceTimeBy(2 * 3_600_000L)
+        runCurrent()
+        assertEquals(1, api.calls)
+        assertEquals(listOf("dahl", "lasagnes"), c.recipes.value.map { it.slug }) // kept while paused
+        active.value = true
+        runCurrent()
+        assertEquals(2, api.calls)
+    }
+
+    @Test
     fun the_bedroom_never_calls_mealie() = runTest {
         settings.value = cuisine.copy(room = Room.CHAMBRE)
         val c = start()

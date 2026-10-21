@@ -154,8 +154,14 @@ class MainActivity : ComponentActivity() {
         return super.dispatchTouchEvent(ev)
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (phone) vm.foreground.value = true
+    }
+
     override fun onStop() {
         super.onStop()
+        if (phone) vm.foreground.value = false
         // What was changed in the app shows on the home-screen widgets when you leave it.
         WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build())
     }

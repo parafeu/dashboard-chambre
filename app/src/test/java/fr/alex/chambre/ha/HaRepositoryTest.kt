@@ -51,6 +51,10 @@ private class FakeHa(private val acceptToken: Boolean = true) : WebSocketListene
     }
 
     fun next(): JsonObject = received.poll(5, TimeUnit.SECONDS) ?: error("no message received")
+
+    val closed = java.util.concurrent.CountDownLatch(1)
+    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { closed.countDown() }
+    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { closed.countDown() }
 }
 
 class HaRepositoryTest {
@@ -157,6 +161,23 @@ class HaRepositoryTest {
         withTimeout(5_000) { r.conn.first { it == ConnState.AUTH_FAILED } }
         delay(300)
         assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun pausing_closes_the_socket_and_resuming_reconnects() = runBlocking { // phone in the background
+        val first = FakeHa().also(::enqueue)
+        val second = FakeHa().also(::enqueue)
+        val cfg = HaConfig(server.url("/").toString().trimEnd('/'), "secret")
+        val config = kotlinx.coroutines.flow.MutableStateFlow<HaConfig?>(cfg)
+        val r = HaRepository(scope, client, config, listOf(10))
+        first.handshake()
+        withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
+        config.value = null
+        assertTrue("socket closed when paused", first.closed.await(5, TimeUnit.SECONDS))
+        config.value = cfg
+        second.handshake()
+        withTimeout(5_000) { r.conn.first { it == ConnState.CONNECTED } }
+        Unit
     }
 
     @Test

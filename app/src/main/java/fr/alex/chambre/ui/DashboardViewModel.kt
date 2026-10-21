@@ -18,6 +18,7 @@ import fr.alex.chambre.settings.DeviceFeatures
 import fr.alex.chambre.settings.FormFactor
 import fr.alex.chambre.settings.deviceFeatures
 import fr.alex.chambre.settings.formFactorFor
+import fr.alex.chambre.util.activeWithGrace
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.alex.chambre.ha.Entities
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
@@ -65,7 +67,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     private val client = OkHttpClient.Builder().pingInterval(30, TimeUnit.SECONDS).build()
 
-    val ha = HaRepository(viewModelScope, client, haConfig)
+    /** Phone only: set by MainActivity when the app comes on / leaves the screen. Tablets stay true. */
+    val foreground = MutableStateFlow(true)
+
+    /** Phone in the background for 30 s: no HA connection, no Mealie polling (the widgets have their own access). */
+    private val active = activeWithGrace(foreground, graceMs = 30_000).stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    val ha = HaRepository(viewModelScope, client, combine(haConfig, active) { cfg, on -> cfg.takeIf { on } })
 
     val controller = DashboardController(viewModelScope, ha)
 
@@ -79,6 +87,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         settings.filterNotNull(),
         apiFor = { s -> if (s.mealieUrl.isBlank() || s.mealieToken.isBlank()) null else MealieClient(s.mealieUrl, s.mealieToken, client) },
         enabled = { deviceFeatures(it, formFactor).mealie },
+        active = active,
     )
 
     val presence = PresenceController(
