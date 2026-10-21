@@ -8,7 +8,6 @@ import fr.alex.chambre.ha.HaRestClient
 import fr.alex.chambre.settings.SettingsStore
 import fr.alex.chambre.settings.dataStore
 import fr.alex.chambre.settings.normalizeUrl
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -49,15 +48,9 @@ class WidgetActionCallback : ActionCallback {
         WidgetSnapshots.publish(room, repo.act(room, action))
         val widget = widgetFor(room)
         widget.update(context, glanceId)
-        if (parameters[ACTION] in COVER_ACTIONS) {
-            // A shutter takes a while: show it moving, then where it stopped.
-            delay(3_000)
-            WidgetSnapshots.publish(room, repo.refresh(room))
-            widget.update(context, glanceId)
-            delay(17_000)
-            WidgetSnapshots.publish(room, repo.refresh(room))
-            widget.update(context, glanceId)
-        }
+        // A shutter takes a while: show it moving, then where it stopped. Scheduled, never awaited here: the
+        // callback runs in a broadcast and holds every later widget tap until it returns.
+        if (parameters[ACTION] in COVER_ACTIONS) WidgetRefreshWorker.followUp(context, room)
     }
 
     companion object {
