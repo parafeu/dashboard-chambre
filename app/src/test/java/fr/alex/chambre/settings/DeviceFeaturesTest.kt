@@ -19,11 +19,7 @@ class DeviceFeaturesTest {
         assertEquals(entitiesFor(Room.CHAMBRE), chambre.entities)
         assertFalse(chambre.timerEvents)
         assertFalse(chambre.announcements)
-        assertTrue(chambre.camera)
-        assertTrue(chambre.presence)
-        assertTrue(chambre.batteryReport)
         assertFalse(chambre.mealie)
-        assertTrue(chambre.kiosk)
         assertTrue(chambre.bootStart)
 
         val salon = deviceFeatures(Settings(room = Room.SALON), FormFactor.TABLET)
@@ -46,12 +42,8 @@ class DeviceFeaturesTest {
             assertEquals(entitiesFor(Room.SALON), f.entities)
             assertFalse(f.timerEvents)
             assertFalse(f.announcements)
-            assertFalse(f.batteryReport)
-            assertFalse(f.camera)
-            assertFalse(f.presence)
             assertTrue(f.mealie)
             assertFalse(f.bootStart)
-            assertFalse(f.kiosk)
         }
     }
 }

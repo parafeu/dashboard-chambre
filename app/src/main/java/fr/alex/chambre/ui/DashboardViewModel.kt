@@ -14,7 +14,6 @@ import fr.alex.chambre.battery.BatteryReporter
 import fr.alex.chambre.ha.DeviceInfo
 import fr.alex.chambre.ha.MobileAppClient
 import fr.alex.chambre.settings.dataStore
-import fr.alex.chambre.settings.DeviceFeatures
 import fr.alex.chambre.settings.FormFactor
 import fr.alex.chambre.settings.deviceFeatures
 import fr.alex.chambre.settings.formFactorFor
@@ -56,10 +55,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Read once: a phone stays a phone (split screen or rotation never turns tablet features on). */
     val formFactor: FormFactor = formFactorFor(app.resources.configuration.smallestScreenWidthDp)
-
-    /** What runs on this device; null until the settings are loaded. */
-    val features: StateFlow<DeviceFeatures?> =
-        settings.map { it?.let { s -> deviceFeatures(s, formFactor) } }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val haConfig = settings.filterNotNull()
         .map { s -> deviceFeatures(s, formFactor).let { f -> HaConfig(s.url, s.token, f.entities, timerEvents = f.timerEvents) } }
