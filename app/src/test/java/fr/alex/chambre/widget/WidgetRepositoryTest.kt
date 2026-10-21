@@ -36,12 +36,14 @@ class WidgetRepositoryTest {
         "cover.volet_chambre" to """{"entity_id":"cover.volet_chambre","state":"open","attributes":{"current_position":100}}""",
     )
     private var failing = false
+    private var failPosts = 0
     private var settings = Settings(token = "t")
 
     @Before fun setUp() {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 if (failing) return MockResponse().setResponseCode(500)
+                if (failPosts != 0 && request.method == "POST") return MockResponse().setResponseCode(failPosts)
                 val path = request.path.orEmpty()
                 return when {
                     path.startsWith("/api/states/") -> states[path.removePrefix("/api/states/")]?.let { MockResponse().setBody(it) }
@@ -103,6 +105,22 @@ class WidgetRepositoryTest {
         assertEquals("light/turn_on", service)
         assertEquals("light.chambre_lumieres", data["entity_id"]!!.jsonPrimitive.content)
         assertEquals(10, data["brightness_pct"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun `a refused command keeps the last states dimmed`() = runBlocking {
+        repo().refresh(WidgetRoom.CHAMBRE)
+        failPosts = 500
+        val snap = repo().act(WidgetRoom.CHAMBRE, WidgetAction.ToggleLight)
+        assertTrue(snap.stale)
+        assertEquals("off", snap.states["light.chambre_lumieres"]?.state)
+    }
+
+    @Test
+    fun `a wrong token is stale, not a crash`() = runBlocking {
+        repo().refresh(WidgetRoom.CHAMBRE)
+        failPosts = 401
+        assertTrue(repo().act(WidgetRoom.CHAMBRE, WidgetAction.CoverClose).stale)
     }
 
     @Test
