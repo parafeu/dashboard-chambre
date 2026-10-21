@@ -20,7 +20,7 @@ object Amber {
     val OnTertiary = Color(0xFF2E3305)
 }
 
-private val AmberDark = darkColorScheme(
+internal val AmberDark = darkColorScheme(
     primary = Amber.Primary,
     onPrimary = Amber.OnPrimary,
     primaryContainer = Amber.PrimaryContainer,

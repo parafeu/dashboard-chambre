@@ -69,3 +69,9 @@ fun climateText(temperature: EntityState?, humidity: EntityState?): String {
     val h = humidity.known()?.state?.toDoubleOrNull()?.let { "${it.toInt()} %" }
     return listOfNotNull(t, h).joinToString(" · ")
 }
+
+enum class CoverButton { OPEN, STOP, CLOSE }
+
+/** The round buttons at the end of every shutter tile, the same in the three widgets. */
+@Suppress("UNUSED_PARAMETER")
+fun coverButtons(room: WidgetRoom): List<CoverButton> = listOf(CoverButton.OPEN, CoverButton.STOP, CoverButton.CLOSE)
