@@ -27,4 +27,11 @@ class TabRequestTest {
         assertEquals(SalonTab.CHAMBRE, again.tab)
         org.junit.Assert.assertNotEquals(first, again)
     }
+
+    @Test
+    fun `a widget request while the app runs closes the open recipe`() {
+        val launch = TabRequest.from("cuisine")
+        org.junit.Assert.assertFalse(launch.closesRecipe)
+        org.junit.Assert.assertTrue(launch.next("chambre").closesRecipe)
+    }
 }

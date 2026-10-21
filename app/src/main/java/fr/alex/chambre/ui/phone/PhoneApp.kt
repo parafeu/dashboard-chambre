@@ -64,6 +64,9 @@ fun tabFromExtra(value: String?): SalonTab = when (value) {
 
 /** A room asked for by a widget; [seq] makes a second request for the same room a new one. */
 data class TabRequest(val tab: SalonTab, val seq: Int) {
+    /** A widget asking for a room while the app already runs: an open recipe gives way to that room. */
+    val closesRecipe: Boolean get() = seq > 0
+
     fun next(extra: String?) = TabRequest(tabFromExtra(extra), seq + 1)
 
     companion object {
@@ -92,6 +95,7 @@ fun PhoneApp(vm: DashboardViewModel, request: TabRequest, onOpenSettings: () -> 
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
 
     var tab by rememberSaveable(request) { mutableStateOf(request.tab) }
+    LaunchedEffect(request) { if (request.closesRecipe) vm.cuisine.close() }
     val online = conn == ConnState.CONNECTED
     val scroll = rememberScrollState()
     LaunchedEffect(tab) { scroll.scrollTo(0) }
