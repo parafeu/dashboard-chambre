@@ -103,3 +103,12 @@ object WidgetSnapshots {
         return flows.getValue(room).value.takeIf { now - at < maxAgeMs }
     }
 }
+
+/**
+ * When to read HA again after an action: right after the call HA often still reports the old state (a light
+ * fading out, a shutter moving), so the widget is redrawn once the device has reported.
+ */
+fun followUpDelaysSec(action: WidgetAction): List<Long> = when (action) {
+    WidgetAction.ToggleLight, is WidgetAction.StepLight -> listOf(2L, 6L)
+    WidgetAction.CoverTapAction, WidgetAction.CoverOpen, WidgetAction.CoverStop, WidgetAction.CoverClose -> listOf(3L, 20L)
+}

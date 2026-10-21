@@ -48,9 +48,9 @@ class WidgetActionCallback : ActionCallback {
         WidgetSnapshots.publish(room, repo.act(room, action))
         val widget = widgetFor(room)
         widget.update(context, glanceId)
-        // A shutter takes a while: show it moving, then where it stopped. Scheduled, never awaited here: the
-        // callback runs in a broadcast and holds every later widget tap until it returns.
-        if (parameters[ACTION] in COVER_ACTIONS) WidgetRefreshWorker.followUp(context, room)
+        // HA reports the new state a moment later (a light fading out, a shutter moving). Scheduled, never awaited
+        // here: the callback runs in a broadcast and holds every later widget tap until it returns.
+        WidgetRefreshWorker.followUp(context, room, followUpDelaysSec(action))
     }
 
     companion object {
@@ -63,6 +63,5 @@ class WidgetActionCallback : ActionCallback {
         const val OPEN = "open"
         const val STOP = "stop"
         const val CLOSE = "close"
-        private val COVER_ACTIONS = setOf(COVER_TAP, OPEN, STOP, CLOSE)
     }
 }

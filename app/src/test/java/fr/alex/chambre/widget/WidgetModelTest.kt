@@ -85,3 +85,15 @@ class CoverButtonsTest {
         }
     }
 }
+
+class FollowUpTest {
+    @Test
+    fun `every action reads the state again once the device has reported`() {
+        listOf(WidgetAction.ToggleLight, WidgetAction.StepLight(-10), WidgetAction.CoverTapAction, WidgetAction.CoverOpen, WidgetAction.CoverStop, WidgetAction.CoverClose).forEach { a ->
+            assert(followUpDelaysSec(a).isNotEmpty()) { "no follow-up for $a" }
+        }
+        assertEquals(listOf(2L, 6L), followUpDelaysSec(WidgetAction.ToggleLight))
+        assertEquals(listOf(2L, 6L), followUpDelaysSec(WidgetAction.StepLight(10)))
+        assertEquals(listOf(3L, 20L), followUpDelaysSec(WidgetAction.CoverClose))
+    }
+}

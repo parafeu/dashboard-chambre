@@ -30,12 +30,12 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
             )
         }
 
-        /** Redraws one room's widget 3 s and 20 s from now (a moving shutter); a new tap replaces pending ones. */
-        fun followUp(context: Context, room: WidgetRoom) {
+        /** Redraws one room's widget after each of [delaysSec]; a new tap replaces the pending ones. */
+        fun followUp(context: Context, room: WidgetRoom, delaysSec: List<Long>) {
             val wm = WorkManager.getInstance(context)
-            listOf(3L, 20L).forEach { s ->
+            delaysSec.forEachIndexed { i, s ->
                 wm.enqueueUniqueWork(
-                    "$NAME-${room.name}-$s",
+                    "$NAME-${room.name}-$i",
                     androidx.work.ExistingWorkPolicy.REPLACE,
                     androidx.work.OneTimeWorkRequestBuilder<WidgetRefreshWorker>()
                         .setInitialDelay(s, TimeUnit.SECONDS)
