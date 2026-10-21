@@ -4,6 +4,7 @@ import fr.alex.chambre.boot.bootStart
 import fr.alex.chambre.boot.BootStart
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Switch
 import android.provider.Settings as AndroidSettings
@@ -29,6 +30,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -113,6 +116,8 @@ fun SettingsScreen(
     calendars: List<DeviceCalendar>? = emptyList(),
     onAllowCalendars: () -> Unit = {},
     mealieError: String? = null,
+    /** Phone: only the Home Assistant connection and Mealie. */
+    phone: Boolean = false,
 ) {
     var url by remember(initial) { mutableStateOf(initial.url) }
     var token by remember(initial) { mutableStateOf(initial.token) }
@@ -134,9 +139,57 @@ fun SettingsScreen(
     var mealieUrl by remember(initial) { mutableStateOf(initial.mealieUrl) }
     var mealieToken by remember(initial) { mutableStateOf(initial.mealieToken) }
     val canClose = initial.token.isNotBlank()
+    val mealieFields: @Composable ColumnScope.() -> Unit = {
+        Text(
+            "Recettes Mealie (lecture seule) : adresse du serveur et clé API (Mealie → profil → Clés API).",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = mealieUrl, onValueChange = { mealieUrl = it }, label = { Text("Adresse Mealie") },
+            singleLine = true, modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        )
+        OutlinedTextField(
+            value = mealieToken, onValueChange = { mealieToken = it }, label = { Text("Clé API Mealie") },
+            singleLine = true, modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        )
+        if (mealieError != null) {
+            Text(mealieError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
+    val connexion: @Composable () -> Unit = {
+        Card("Connexion", Icons.Filled.Link) {
+            OutlinedTextField(
+                value = url, onValueChange = { url = it }, label = { Text("URL Home Assistant") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            )
+            OutlinedTextField(
+                value = token, onValueChange = { token = it }, label = { Text("Jeton longue durée") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            )
+        }
+    }
+    val saveButtons: @Composable () -> Unit = {
+        if (canClose) TextButton(onClick = onClose) { Text("Annuler") }
+        Button(onClick = {
+            onSave(
+                Settings(
+                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart,
+                    mealieUrl = mealieUrl, mealieToken = mealieToken,
+                    room = room, workCalendar = workCal, alertsCalendar = alertsCal,
+                ),
+            )
+        }) { Text("Enregistrer") }
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        val page = if (phone) Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(12.dp) else Modifier.fillMaxSize().padding(24.dp)
+        Column(page, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (canClose) {
                     FilledTonalIconButton(onClick = onClose, modifier = Modifier.size(52.dp)) {
@@ -147,24 +200,19 @@ fun SettingsScreen(
                 Spacer(Modifier.weight(1f))
                 ConnChip(conn, initial.token.isBlank())
             }
+            if (phone) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    connexion()
+                    Card("Recettes", Icons.Filled.Restaurant) { mealieFields() }
+                    Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(12.dp)) { saveButtons() }
+                }
+            } else
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    Card("Connexion", Icons.Filled.Link) {
-                        OutlinedTextField(
-                            value = url, onValueChange = { url = it }, label = { Text("URL Home Assistant") },
-                            singleLine = true, modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        )
-                        OutlinedTextField(
-                            value = token, onValueChange = { token = it }, label = { Text("Jeton longue durée") },
-                            singleLine = true, modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        )
-                    }
+                    connexion()
                     Card("Pièce de cette tablette", Icons.Filled.Home) {
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                             Room.entries.forEachIndexed { i, r ->
@@ -175,26 +223,7 @@ fun SettingsScreen(
                                 ) { Text(roomLabel(r)) }
                             }
                         }
-                        if (room == Room.CUISINE || room == Room.SALON) {
-                            Text(
-                                "Recettes Mealie (lecture seule) : adresse du serveur et clé API (Mealie → profil → Clés API).",
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            OutlinedTextField(
-                                value = mealieUrl, onValueChange = { mealieUrl = it }, label = { Text("Adresse Mealie") },
-                                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                            )
-                            OutlinedTextField(
-                                value = mealieToken, onValueChange = { mealieToken = it }, label = { Text("Clé API Mealie") },
-                                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            )
-                            if (mealieError != null) {
-                                Text(mealieError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                            }
-                        }
+                        if (room == Room.CUISINE || room == Room.SALON) mealieFields()
                         if (room == Room.SALON) {
                             Text(
                                 "Annonces vocales : réunions du calendrier Travail 5 min avant, alertes du calendrier Alertes à confirmer, fin des minuteurs de cuisine.",
@@ -293,16 +322,7 @@ fun SettingsScreen(
                         )
                     }
                     Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (canClose) TextButton(onClick = onClose) { Text("Annuler") }
-                        Button(onClick = {
-                            onSave(
-                                Settings(
-                                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart,
-                                    mealieUrl = mealieUrl, mealieToken = mealieToken,
-                                    room = room, workCalendar = workCal, alertsCalendar = alertsCal,
-                                ),
-                            )
-                        }) { Text("Enregistrer") }
+                        saveButtons()
                     }
                 }
             }

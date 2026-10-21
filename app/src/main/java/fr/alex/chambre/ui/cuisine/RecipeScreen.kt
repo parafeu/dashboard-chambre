@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,12 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -81,6 +85,8 @@ fun RecipeScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onTimer: (seconds: Int, label: String) -> Unit,
+    /** Portrait phone: ingredients above the steps, the whole screen scrolls. */
+    stacked: Boolean = false,
 ) {
     when (opened) {
         is OpenedRecipe.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -95,42 +101,47 @@ fun RecipeScreen(
                 Button(onClick = onRetry) { Text("Réessayer") }
             }
         }
-        is OpenedRecipe.Ready -> RecipeContent(opened.recipe, onBack, onTimer)
+        is OpenedRecipe.Ready -> RecipeContent(opened.recipe, onBack, onTimer, stacked)
     }
 }
 
 @Composable
-private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, String) -> Unit) {
+private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, String) -> Unit, stacked: Boolean) {
     var servings by remember(recipe.slug) { mutableDoubleStateOf(recipe.baseServings) }
     var ticked by remember(recipe.slug) { mutableStateOf(emptySet<Int>()) }
     var current by remember(recipe.slug) { mutableIntStateOf(0) }
     val factor = servings / recipe.baseServings
     val colors = MaterialTheme.colorScheme
+    val stepper: @Composable () -> Unit = {
+        ServingsStepper(
+            servings = servings,
+            onLess = { servings = (servings - 1).coerceAtLeast(1.0) },
+            onMore = { servings = (servings + 1).coerceAtMost(24.0) },
+        )
+    }
 
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    val outer = if (stacked) Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp) else Modifier.fillMaxSize().padding(24.dp)
+    Column(outer, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.heightIn(min = 88.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             FilledTonalIconButton(onClick = onBack, modifier = Modifier.size(60.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour aux recettes", Modifier.size(28.dp))
             }
             RecipeImage(recipe.imageUrl, Modifier.width(116.dp).height(84.dp).clip(RoundedCornerShape(18.dp)))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(recipe.name, fontSize = 28.sp, lineHeight = 32.sp, color = colors.onPrimaryContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(recipe.name, fontSize = (if (stacked) 22 else 28).sp, lineHeight = (if (stacked) 26 else 32).sp, color = colors.onPrimaryContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val times = listOfNotNull(
                     recipe.prepMinutes?.let { "Préparation ${minutesLabel(it)}" },
                     recipe.cookMinutes?.let { "Cuisson ${minutesLabel(it)}" },
                     recipe.totalMinutes?.let { "Total ${minutesLabel(it)}" },
                 )
-                if (times.isNotEmpty()) Text(times.joinToString("   "), fontSize = 15.sp, color = colors.onSurfaceVariant)
+                if (times.isNotEmpty()) Text(times.joinToString(if (stacked) "\n" else "   "), fontSize = 15.sp, color = colors.onSurfaceVariant)
             }
-            ServingsStepper(
-                servings = servings,
-                onLess = { servings = (servings - 1).coerceAtLeast(1.0) },
-                onMore = { servings = (servings + 1).coerceAtMost(24.0) },
-            )
+            if (!stacked) stepper()
         }
+        if (stacked) stepper()
 
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Panel(Modifier.width(390.dp)) {
+        Split(stacked) { first, second ->
+            Panel(first) {
                 PanelTitle("Ingrédients", "${ticked.size} / ${recipe.ingredients.size} prêts")
                 if (recipe.ingredients.any { !it.scalable && it.food == null }) {
                     Text(
@@ -140,70 +151,66 @@ private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, Str
                         modifier = Modifier.padding(horizontal = 6.dp),
                     )
                 }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    itemsIndexed(recipe.ingredients) { i, ing ->
-                        val section = ing.section
-                        if (section != null && (i == 0 || recipe.ingredients[i - 1].section != section)) {
-                            Text(
-                                section,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.primary,
-                                modifier = Modifier.padding(start = 8.dp, top = 10.dp, bottom = 4.dp),
-                            )
-                        }
-                        IngredientRow(
-                            line = ingredientLine(ing, factor),
-                            done = i in ticked,
-                            onToggle = { ticked = if (i in ticked) ticked - i else ticked + i },
+                ItemList(recipe.ingredients, lazy = !stacked, spacing = 2) { i, ing ->
+                    val section = ing.section
+                    if (section != null && (i == 0 || recipe.ingredients[i - 1].section != section)) {
+                        Text(
+                            section,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.primary,
+                            modifier = Modifier.padding(start = 8.dp, top = 10.dp, bottom = 4.dp),
                         )
                     }
+                    IngredientRow(
+                        line = ingredientLine(ing, factor),
+                        done = i in ticked,
+                        onToggle = { ticked = if (i in ticked) ticked - i else ticked + i },
+                    )
                 }
             }
-            Panel(Modifier.weight(1f)) {
+            Panel(second) {
                 PanelTitle("Étapes", if (recipe.steps.isEmpty()) "" else "Étape ${current + 1} sur ${recipe.steps.size}")
                 val list = rememberLazyListState()
-                LaunchedEffect(current) { list.animateScrollToItem(current) }
-                LazyColumn(Modifier.weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    itemsIndexed(recipe.steps) { i, step ->
-                        val on = i == current
-                        Column(
-                            Modifier.fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (on) CURRENT_STEP_BG else Color.Transparent)
-                                .padding(if (on) 16.dp else 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Surface(onClick = { current = i }, color = Color.Transparent, shape = RoundedCornerShape(14.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                    Box(
-                                        Modifier.size(36.dp).clip(CircleShape).background(if (on) colors.primary else colors.surfaceContainerHighest),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text("${i + 1}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (on) colors.onPrimary else colors.onSurface)
-                                    }
-                                    val title = stepHeading(step, current = on)
-                                    Text(
-                                        title,
-                                        fontSize = if (on) 15.sp else 17.sp,
-                                        fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                                        color = when {
-                                            on -> CURRENT_STEP_TITLE
-                                            i < current -> colors.onSurfaceVariant.copy(alpha = 0.7f)
-                                            else -> colors.onSurface
-                                        },
-                                        maxLines = if (on) 2 else 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
+                if (!stacked) LaunchedEffect(current) { list.animateScrollToItem(current) }
+                ItemList(recipe.steps, lazy = !stacked, spacing = 6, modifier = if (stacked) Modifier else Modifier.weight(1f), state = list) { i, step ->
+                    val on = i == current
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (on) CURRENT_STEP_BG else Color.Transparent)
+                            .padding(if (on) 16.dp else 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Surface(onClick = { current = i }, color = Color.Transparent, shape = RoundedCornerShape(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                Box(
+                                    Modifier.size(36.dp).clip(CircleShape).background(if (on) colors.primary else colors.surfaceContainerHighest),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text("${i + 1}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (on) colors.onPrimary else colors.onSurface)
                                 }
-                            }
-                            if (on && step.text.isNotBlank()) {
-                                StepText(
-                                    text = step.text,
-                                    onTimer = { seconds -> onTimer(seconds, step.title.ifBlank { recipe.name }) },
-                                    modifier = Modifier.padding(start = 50.dp),
+                                val title = stepHeading(step, current = on)
+                                Text(
+                                    title,
+                                    fontSize = if (on) 15.sp else 17.sp,
+                                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                                    color = when {
+                                        on -> CURRENT_STEP_TITLE
+                                        i < current -> colors.onSurfaceVariant.copy(alpha = 0.7f)
+                                        else -> colors.onSurface
+                                    },
+                                    maxLines = if (on) 2 else 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                        }
+                        if (on && step.text.isNotBlank()) {
+                            StepText(
+                                text = step.text,
+                                onTimer = { seconds -> onTimer(seconds, step.title.ifBlank { recipe.name }) },
+                                modifier = Modifier.padding(start = 50.dp),
+                            )
                         }
                     }
                 }
@@ -328,5 +335,34 @@ private fun PanelTitle(title: String, detail: String) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.Bottom) {
         Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         Text(detail, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Two panels side by side (tablet), or one under the other (phone). */
+@Composable
+private fun ColumnScope.Split(stacked: Boolean, content: @Composable (first: Modifier, second: Modifier) -> Unit) {
+    if (stacked) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { content(Modifier.fillMaxWidth(), Modifier.fillMaxWidth()) }
+    } else {
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) { content(Modifier.width(390.dp), Modifier.weight(1f)) }
+    }
+}
+
+/** A lazy list on the tablet; a plain column on the phone, where the whole screen scrolls. */
+@Composable
+private fun <T> ItemList(
+    items: List<T>,
+    lazy: Boolean,
+    spacing: Int,
+    modifier: Modifier = Modifier,
+    state: LazyListState? = null,
+    item: @Composable (Int, T) -> Unit,
+) {
+    if (lazy) {
+        LazyColumn(modifier, state = state ?: rememberLazyListState(), verticalArrangement = Arrangement.spacedBy(spacing.dp)) {
+            itemsIndexed(items) { i, t -> item(i, t) }
+        }
+    } else {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing.dp)) { items.forEachIndexed { i, t -> item(i, t) } }
     }
 }

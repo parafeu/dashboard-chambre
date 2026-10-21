@@ -71,7 +71,7 @@ private enum class WeatherMode { HOURS, WEEK }
 
 /** Current local time, updated at each minute boundary. */
 @Composable
-private fun rememberNow(): LocalDateTime {
+internal fun rememberNow(): LocalDateTime {
     var now by remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -154,12 +154,15 @@ fun HeaderBar(
 }
 
 @Composable
-private fun WeatherBlock(
+internal fun WeatherBlock(
     condition: String,
     temp: Double?,
     hourly: List<ForecastEntry>,
     daily: List<ForecastEntry>,
     today: LocalDate,
+    /** How many hours / days fit beside the current weather (fewer on a phone). */
+    hours: Int = 7,
+    days: Int = 6,
 ) {
     var mode by remember { mutableStateOf(WeatherMode.HOURS) }
     LaunchedEffect(mode) {
@@ -196,9 +199,9 @@ private fun WeatherBlock(
         AnimatedContent(mode, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "weather") { m ->
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (m == WeatherMode.HOURS) {
-                    hourly.filter { it.time.isAfter(Instant.now()) }.take(7).forEach { HourItem(it) }
+                    hourly.filter { it.time.isAfter(Instant.now()) }.take(hours).forEach { HourItem(it) }
                 } else {
-                    dailyByDate(daily).take(6).forEach { (date, e) -> DayItem(dayLabel(date, today), e) }
+                    dailyByDate(daily).take(days).forEach { (date, e) -> DayItem(dayLabel(date, today), e) }
                 }
             }
         }

@@ -131,7 +131,7 @@ fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier) {
 
 /** The opened recipe, full screen; returns false when no recipe is open. */
 @Composable
-fun CuisineRecipeOverlay(vm: DashboardViewModel, snackbar: SnackbarHostState): Boolean {
+fun CuisineRecipeOverlay(vm: DashboardViewModel, snackbar: SnackbarHostState, stacked: Boolean = false): Boolean {
     val opened by vm.cuisine.opened.collectAsStateWithLifecycle()
     val recipe = opened ?: return false
     val scope = rememberCoroutineScope()
@@ -142,18 +142,22 @@ fun CuisineRecipeOverlay(vm: DashboardViewModel, snackbar: SnackbarHostState): B
         onBack = vm.cuisine::close,
         onRetry = { vm.cuisine.open(recipe.slug) },
         onTimer = { seconds, label -> scope.launch { snackbar.showSnackbar(startSystemTimer(context, seconds, label)) } },
+        stacked = stacked,
     )
     return true
 }
 
 @Composable
-private fun RecipesPanel(
+internal fun RecipesPanel(
     recipes: List<RecipeSummary>,
     banner: TodayBanner?,
     error: String?,
     onOpen: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Phone: 2 columns, and plain rows instead of a lazy grid (the whole screen scrolls). */
+    columns: Int = 3,
+    lazy: Boolean = true,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var filter by remember { mutableStateOf<RecipeFilter>(RecipeFilter.All) }
@@ -171,8 +175,10 @@ private fun RecipesPanel(
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(start = 6.dp).weight(1f),
                 )
-                SearchBox(query, { query = it }, Modifier.width(300.dp))
+                if (columns >= 3) SearchBox(query, { query = it }, Modifier.width(300.dp))
             }
+            // Narrow phone column: the search box gets its own line.
+            if (columns < 3) SearchBox(query, { query = it }, Modifier.fillMaxWidth())
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filters) { f ->
                     FilterChip(
@@ -191,12 +197,20 @@ private fun RecipesPanel(
                 error != null && recipes.isEmpty() -> Message(error, onRetry)
                 recipes.isEmpty() -> Message("Chargement des recettes…", null)
                 shown.isEmpty() -> Message("Aucune recette ne correspond", null)
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                lazy -> LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(shown, key = { it.slug }) { r -> RecipeCard(r) { onOpen(r.slug) } }
+                }
+                else -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    shown.chunked(columns).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            row.forEach { r -> Box(Modifier.weight(1f)) { RecipeCard(r) { onOpen(r.slug) } } }
+                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
                 }
             }
         }
