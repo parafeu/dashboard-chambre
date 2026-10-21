@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App mobile</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,1,0&display=block" rel="stylesheet">
+<style>
+  /* Amber theme, values from ui/theme/Theme.kt */
+  :root{--primary:#FFB86B;--onPrimary:#4A2800;--pc:#6A3B00;--onPc:#FFDCBE;--bg:#19120C;--sc:#261E17;--sch:#3A3028;--schst:#453A31;--scl:#211A13;
+        --on:#F0DFD3;--onv:#D6C3B5;--out:#52443A;--ter:#C5CA8F;--onTer:#2E3305;--secC:#59422C;--onSecC:#FEDCBE}
+  .mi{font-family:"Material Symbols Outlined";font-variation-settings:"FILL" 1;font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;-webkit-font-smoothing:antialiased;font-feature-settings:"liga"}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0f1115;color:#e8e8e8;font-family:"Roboto Flex",system-ui,sans-serif;display:flex;gap:40px;justify-content:center;align-items:flex-start;padding:28px 16px;flex-wrap:wrap}
+  .panel{width:330px}
+  h1{font-size:20px;margin:0 0 6px;font-weight:600}
+  .sub{font-size:13px;color:#9aa;margin:0 0 16px;line-height:1.5}
+  .pick{background:#1a1d23;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+  .pick h3{margin:0 0 8px;font-size:14px}
+  .opt{display:block;width:100%;background:#2a2f38;border:1px solid transparent;color:#ddd;border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer;text-align:left;font-family:inherit;line-height:1.4;margin-bottom:6px}
+  .opt b{display:block;font-size:13px}
+  .opt.sel{border-color:#ffb86b;background:#3a2c1c}
+  .out{font-size:12px;color:#9aa;line-height:1.6}
+  .log{font-size:12px;color:#9aa;margin-top:10px;min-height:50px;line-height:1.5}
+
+  .phone{width:372px;height:826px;border-radius:46px;background:#000;padding:10px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+  .screen{width:100%;height:100%;border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;background:var(--bg);color:var(--on)}
+  .status{height:34px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:13px}
+  .cam{position:absolute;top:14px;left:50%;width:12px;height:12px;border-radius:50%;background:#000;transform:translateX(-50%)}
+  .scroll{flex:1;overflow-y:auto;padding:4px 12px 16px;scrollbar-width:none}
+  .scroll::-webkit-scrollbar{display:none}
+  .gesture{height:4px;width:110px;border-radius:2px;background:rgba(255,255,255,.6);margin:6px auto 8px;flex:none}
+
+  /* header */
+  .hdr{display:flex;justify-content:space-between;align-items:center;padding:6px 6px 10px}
+  .hdr .d{font-size:24px}
+  .hdr .o{font-size:12px;color:var(--onv);display:flex;align-items:center;gap:6px;margin-top:2px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ter)}
+  .gear{width:44px;height:44px;border-radius:50%;background:var(--sc);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--onv)}
+  .weather{background:var(--sc);border-radius:32px;padding:12px 16px;display:flex;gap:14px;align-items:center;margin-bottom:12px;cursor:pointer}
+  .wnow{display:flex;align-items:center;gap:6px;font-size:30px;font-weight:300;white-space:nowrap}
+  .hours{display:flex;flex:1;justify-content:space-between}
+  .hours div{text-align:center;font-size:11px;color:var(--onv)}
+  .hours b{display:block;font-size:15px;color:var(--on);font-weight:500;margin-top:2px}
+  .room{font-size:13px;color:var(--onv);margin:4px 8px 8px;display:flex;justify-content:space-between}
+
+  /* Section (DashboardScreen.kt): radius 32, surfaceContainer, padding 16, gap 12 */
+  .section{background:var(--sc);border-radius:32px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
+  .stitle{font-size:16px;font-weight:500;color:var(--onv);padding:4px 0 0 8px}
+
+  /* VerticalSlider (components/VerticalSlider.kt) */
+  .vs{position:relative;border-radius:36px;background:var(--schst);overflow:hidden;cursor:pointer;touch-action:none;user-select:none}
+  .vs.off{opacity:.38;cursor:default}
+  .vs .fill{position:absolute;left:0;right:0;bottom:0;background:var(--primary)}
+  .vs.top .fill{top:0;bottom:auto;background:var(--ter)}
+  .vs .thumb{position:absolute;left:50%;width:56px;height:8px;margin-left:-28px;border-radius:4px;background:rgba(74,40,0,.6)}
+  .vs.grad .thumb{background:#fff}
+  .vs .lbl{position:absolute;top:20px;left:0;right:0;text-align:center;font-size:20px;font-weight:400}
+  .vs .ico{position:absolute;left:50%;bottom:24px;margin-left:-18px;font-size:36px;color:var(--onPrimary)}
+
+  /* Light buttons (LightButtonGroup): connected M3 Expressive group */
+  .bgroup{display:flex;gap:4px;height:64px}
+  .bgroup button{border:0;font-family:inherit;font-size:16px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+  .bgroup .pw{flex:.42;border-radius:32px 8px 8px 32px;background:var(--schst);color:var(--on)}
+  .bgroup .pw.on{background:var(--primary);color:var(--onPrimary)}
+  .bgroup .df{flex:.58;border-radius:8px 32px 32px 8px;background:var(--secC);color:var(--onSecC)}
+  .swatches{display:flex;gap:8px}
+  .swatches i{flex:1;aspect-ratio:1;border-radius:50%;cursor:pointer;display:block}
+  .swatches i.rb{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);box-shadow:inset 0 0 0 3px var(--sc)}
+
+  /* CoverPanel: slider + column of FilledTonalIconButton 80x72 r24 */
+  .crow{display:flex;gap:14px}
+  .ccol{display:flex;flex-direction:column;gap:12px;justify-content:center}
+  .cbtn{width:80px;height:72px;border-radius:24px;border:0;background:var(--secC);color:var(--onSecC);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .cbtn .mi{font-size:32px}
+  .cstate{height:48px;display:flex;align-items:center;font-size:16px;font-weight:500;padding-left:4px}
+
+  /* ScenesPanel: SceneTile */
+  .scene{display:flex;align-items:center;gap:16px;height:72px;padding:0 20px;border-radius:24px;background:var(--sch);color:var(--on);cursor:pointer;font-size:22px;transition:border-radius .2s,background .2s}
+  .scene.sel{background:var(--primary);color:var(--onPrimary);border-radius:44px}
+  .scene .c{width:52px;height:52px;border-radius:50%;background:var(--schst);display:flex;align-items:center;justify-content:center}
+  .scene.sel .c{background:rgba(74,40,0,.12)}
+  .scene .mi{font-size:28px}
+
+  /* Cuisine (CuisineApp.kt) */
+  .search{display:flex;align-items:center;gap:10px;background:var(--sch);border-radius:28px;padding:0 16px;height:52px;color:var(--onv)}
+  .search input{flex:1;background:none;border:0;color:var(--on);font-size:16px;font-family:inherit;outline:none}
+  .fchips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+  .fchips button{flex:none;background:none;border:1px solid var(--out);color:var(--on);border-radius:8px;padding:8px 14px;font-size:15px;cursor:pointer;font-family:inherit}
+  .fchips button.on{background:var(--secC);border-color:var(--secC);color:var(--onSecC)}
+  .today{display:flex;gap:16px;align-items:center;padding:12px;border-radius:24px;background:var(--pc);color:var(--onPc);cursor:pointer}
+  .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .rc{background:var(--sch);border-radius:24px;overflow:hidden;cursor:pointer}
+  .rc .rn{font-size:15px;font-weight:500;margin:10px 12px 2px;line-height:1.25}
+  .rc .t{font-size:13px;color:var(--onv);margin:0 12px 12px;display:flex;align-items:center;gap:4px}
+  .img{background:var(--schst);display:flex;align-items:center;justify-content:center;color:var(--onv)}
+  .rhead{display:flex;align-items:center;gap:12px;padding:4px 0 12px}
+  .back{height:44px;border:0;border-radius:22px;background:var(--sc);color:var(--on);font-size:15px;cursor:pointer;display:flex;align-items:center;gap:4px;padding:0 14px 0 8px;font-family:inherit}
+  .serv{display:flex;align-items:center;gap:8px}
+  .serv button{width:44px;height:44px;border-radius:50%;border:0;background:var(--secC);color:var(--onSecC);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .ing{display:flex;gap:12px;align-items:center;padding:10px 4px;font-size:15px;cursor:pointer}
+  .ing.d{opacity:.45;text-decoration:line-through}
+  .box{width:24px;height:24px;border-radius:6px;border:2px solid var(--out);display:flex;align-items:center;justify-content:center;flex:none}
+  .ing.d .box{background:var(--primary);border-color:var(--primary);color:var(--onPrimary)}
+  .step{display:flex;gap:14px;padding:14px;border-radius:20px;font-size:15px;line-height:1.5;cursor:pointer;opacity:.6}
+  .step.cur{background:var(--sch);opacity:1}
+  .num{width:32px;height:32px;border-radius:50%;background:var(--schst);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+  .step.cur .num{background:var(--primary);color:var(--onPrimary)}
+  .tchip{background:var(--pc);color:var(--onPc);border:0;border-radius:8px;padding:2px 8px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:3px}
+  .stepnav{display:flex;gap:8px}
+  .stepnav button{flex:1;height:56px;border-radius:28px;border:0;font-size:16px;cursor:pointer;font-family:inherit}
+  .stepnav .p{background:var(--secC);color:var(--onSecC)}.stepnav .n{background:var(--primary);color:var(--onPrimary);font-weight:600}
+
+  /* Rail → bottom bar (RoomRail / RailItem in SalonApp.kt) */
+  .navbar{flex:none;display:flex;gap:6px;background:var(--scl);padding:8px 8px 2px}
+  .navbar button{flex:1;border:0;border-radius:22px;background:var(--sc);color:var(--on);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;transition:background .2s,border-radius .2s}
+  .navbar button.sel{background:var(--primary);color:var(--onPrimary);border-radius:32px}
+  .navbar b{font-size:14px}.navbar small{font-size:10.5px;opacity:.8;line-height:1.25;padding:0 6px;text-align:center}
+  .m3nav{flex:none;display:flex;background:var(--scl);padding:12px 0 6px}
+  .m3nav button{flex:1;border:0;background:none;color:var(--onv);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .m3nav .pill{width:64px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+  .m3nav button.sel{color:var(--on)}
+  .m3nav button.sel .pill{background:var(--secC);color:var(--onSecC)}
+  .floatwrap{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;pointer-events:none}
+  .float{pointer-events:auto;display:flex;gap:4px;background:var(--sch);border-radius:32px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+  .float button{border:0;background:none;color:var(--on);height:52px;border-radius:26px;padding:0 16px;display:flex;align-items:center;gap:8px;font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;transition:background .2s}
+  .float button.sel{background:var(--primary);color:var(--onPrimary)}
+  .float button:not(.sel) b{display:none}
+  .jump{position:sticky;top:-4px;z-index:5;background:var(--bg);display:flex;gap:6px;padding:8px 0}
+  .jump button{flex:1;background:var(--sc);border:0;color:var(--on);border-radius:22px;padding:9px 0;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>App mobile · Pixel 9</h1>
+  <p class="sub">Les panneaux de la tablette tels quels (Lumière, Volet, Ambiance, recettes), empilés pour un écran portrait. Mêmes curseurs verticaux, mêmes boutons, mêmes couleurs, mêmes icônes. Seule la disposition change.</p>
+  <div class="pick"><h3>Navigation</h3>
+    <button class="opt" data-nav="tabs" onclick="setNav('tabs')"><b>A · Barre de pièces en bas</b>Le rail de la tablette salon (Salon, Cuisine, Chambre avec leur état), passé en bas de l'écran.</button>
+    <button class="opt" data-nav="scroll" onclick="setNav('scroll')"><b>B · Une seule page</b>Les trois pièces les unes sous les autres ; des boutons en haut sautent à la pièce.</button>
+  </div>
+  <div class="pick"><h3>Barre du bas</h3>
+    <button class="opt" data-ft="m3" onclick="setFooter('m3')"><b>F1 · Barre de navigation Android</b>La barre standard Material 3 : icône dans une pastille, nom dessous, pas de texte d'état. Comme Paramètres, Google Home ou Photos.</button>
+    <button class="opt" data-ft="float" onclick="setFooter('float')"><b>F2 · Barre flottante</b>Une pilule qui flotte au-dessus du contenu (Material 3 Expressive) ; seule la pièce active affiche son nom.</button>
+    <button class="opt" data-ft="rail" onclick="setFooter('rail')"><b>F3 · Actuelle</b>Le rail de la tablette en bas, avec les résumés.</button>
+  </div>
+  <div class="pick"><h3>Pas sur le téléphone (mon choix, à corriger)</h3>
+    <div class="out">Agenda, veille par la caméra, annonces vocales, retour automatique sur Salon, envoi de la batterie à Home Assistant.</div></div>
+  <div class="log" id="log"></div>
+</div>
+
+<div class="phone"><div class="screen">
+  <div class="cam"></div>
+  <div class="status"><span id="clock">21:47</span><span>▾ ◢ ▮ 82 %</span></div>
+  <div class="scroll" id="scroll"></div>
+  <div id="nav"></div>
+  <div class="gesture"></div>
+</div></div>
+
+<script>
+const SWATCHES=['#FFB46B','#FFD9A8','#FFF3E0','#DCEBFF','#FF3C2D','#FF8C28','#46DC78','#378CFF','#AA5AFF'];
+const S={
+  salon:{light:false,pct:60,k:2700,cover:100,target:null},
+  chambre:{light:true,pct:40,k:2700,cover:50,target:null,scene:null},
+  cuisine:{cover:100,target:null}
+};
+let footer='m3';let nav='tabs', tab='chambre';
+const T={};
+function log(m){const l=document.getElementById('log');l.innerHTML='• '+m+'<br>'+l.innerHTML.split('<br>').slice(0,3).join('<br>');}
+function mi(n,sz){return `<span class="mi"${sz?` style="font-size:${sz}px"`:''}>${n}</span>`;}
+// CoverPanel status text
+function cText(r){const s=S[r];if(s.target!==null)return s.target>s.cover?'Ouverture…':'Fermeture…';
+  return s.cover>=100?'Ouvert':s.cover<=0?'Fermé':'Ouvert à '+s.cover+' %';}
+
+/* VerticalSlider: value 0..1, fillFromTop for the shutter (shows how far it is closed) */
+function vslider(id,{value,top=false,grad=null,label=null,icon=null,enabled=true,height}){
+  const v=Math.max(0,Math.min(1,value));
+  const pos=top?v:1-v;
+  return `<div class="vs${top?' top':''}${grad?' grad':''}${enabled?'':' off'}" data-id="${id}" data-top="${top}" style="flex:1;height:${height}px;${grad?`background:${grad}`:''}">
+    ${grad?'':`<div class="fill" style="height:${v*100}%"></div>`}
+    <div class="thumb" style="top:clamp(10px, calc(${pos*100}% - 4px), calc(100% - 18px))"></div>
+    ${label!==null?`<div class="lbl" style="color:${grad||v>=.9?'var(--onPrimary)':'var(--on)'}">${label}</div>`:''}
+    ${icon?`<span class="mi ico" style="${grad?'color:#4A2800':''}">${icon}</span>`:''}
+  </div>`;}
+
+function lightPanel(r,{title,colors}){const s=S[r];const pct=s.light?s.pct:0;return `<div class="section"><div class="stitle">${title}</div>
+  <div style="display:flex;gap:16px">
+    ${vslider(r+':bri',{value:pct/100,label:pct===0?'Éteinte':pct+' %',icon:'light_mode',height:300})}
+    ${vslider(r+':k',{value:(s.k-2000)/4500,grad:'linear-gradient(#DCEBFF,#FFF3E0,#FFB46B)',label:s.k+' K',icon:'thermostat',enabled:s.light,height:300})}
+  </div>
+  <div class="bgroup"><button class="pw${s.light?' on':''}" onclick="toggle('${r}')">${mi('power_settings_new')}${s.light?(r==='salon'?'Allumées':'Allumée'):(r==='salon'?'Éteintes':'Éteinte')}</button>
+    <button class="df" onclick="defaut('${r}')">${mi('restart_alt')}Par défaut</button></div>
+  ${colors?`<div class="swatches">${SWATCHES.map(c=>`<i style="background:${c}" onclick="swatch('${r}','${c}')"></i>`).join('')}<i class="rb" onclick="log('Roue des couleurs (ColorSheet)')"></i></div>`:''}
+</div>`;}
+
+function coverPanel(r){const s=S[r];return `<div class="section"><div class="stitle">Volet</div>
+  <div class="crow">
+    ${vslider(r+':cover',{value:(100-s.cover)/100,top:true,height:336})}
+    <div class="ccol">
+      <button class="cbtn" title="Ouvrir" onclick="cover('${r}',100)">${mi('arrow_upward')}</button>
+      <button class="cbtn" title="Stop" onclick="cover('${r}','stop')">${mi('stop')}</button>
+      <button class="cbtn" title="Fermer" onclick="cover('${r}',0)">${mi('arrow_downward')}</button>
+      <button class="cbtn" title="Mi-hauteur" onclick="cover('${r}',50)">${mi('vertical_align_center')}</button>
+    </div>
+  </div>
+  <div class="cstate">${cText(r)}</div>
+</div>`;}
+
+function scenesPanel(){const s=S.chambre;return `<div class="section"><div class="stitle">Ambiance</div>
+  ${[['Coucher','bedtime'],['Lecture','menu_book'],['Réveil','wb_twilight'],['Nuit','nights_stay']].map(([n,i])=>
+    `<div class="scene${s.scene===n?' sel':''}" onclick="scene('${n}')"><div class="c">${mi(i)}</div>${n}</div>`).join('')}
+</div>`;}
+
+/* Cuisine: CoverPanel + RecipesPanel; RecipeScreen */
+const RECIPES=[
+  {slug:'curry',n:'Curry de pois chiches',t:35,cat:'Plats',serv:4,
+   ing:[[400,'g','pois chiches cuits'],[1,'','oignon'],[2,'gousses','ail'],[400,'ml','lait de coco'],[2,'c. à s.','pâte de curry'],[null,'','coriandre fraîche']],
+   steps:['Émincer l\'oignon et l\'ail, les faire revenir 5 minutes dans un peu d\'huile.','Ajouter la pâte de curry et cuire 30 à 45 secondes en remuant.','Verser le lait de coco et les pois chiches, laisser mijoter 20 minutes.','Parsemer de coriandre et servir avec du riz.']},
+  {slug:'gratin',n:'Gratin dauphinois',t:75,cat:'Plats',serv:6,ing:[[1.2,'kg','pommes de terre'],[50,'cl','crème']],steps:['Cuire 1 heure à 180 °C.']},
+  {slug:'soupe',n:'Soupe de potimarron',t:40,cat:'Soupes',serv:4,ing:[[1,'','potimarron']],steps:['Cuire 25 minutes puis mixer.']},
+  {slug:'crepes',n:'Crêpes',t:20,cat:'Desserts',serv:4,ing:[[250,'g','farine']],steps:['Cuire 1 minute de chaque côté.']},
+  {slug:'risotto',n:'Risotto aux champignons',t:45,cat:'Plats',serv:4,ing:[[300,'g','riz arborio']],steps:['Cuire 18 minutes.']},
+  {slug:'tarte',n:'Tarte aux pommes',t:60,cat:'Desserts',serv:8,ing:[[5,'','pommes']],steps:['Cuire 35 minutes.']}
+];
+const FILTERS=['Toutes','Moins de 45 min','Plats','Soupes','Desserts'];
+const K={q:'',f:'Toutes',open:null,serv:4,done:{},step:0};
+function img(h){return `<div class="img" style="height:${h}px">${mi('restaurant',h/2.6)}</div>`;}
+function recipesPanel(){const list=RECIPES.filter(r=>(K.f==='Toutes'||(K.f==='Moins de 45 min'?r.t<45:r.cat===K.f))&&r.n.toLowerCase().includes(K.q.toLowerCase()));const m=RECIPES[0];
+  return `<div class="section">
+  <div class="search">${mi('search')}<input placeholder="Chercher une recette" value="${K.q}" oninput="K.q=this.value;renderKeepFocus()"></div>
+  <div class="fchips">${FILTERS.map(f=>`<button class="${K.f===f?'on':''}" onclick="K.f='${f}';render()">${f}</button>`).join('')}</div>
+  <div class="today" onclick="openRecipe('${m.slug}')"><div style="width:64px;border-radius:16px;overflow:hidden;flex:none">${img(64)}</div>
+    <div style="flex:1"><div style="font-size:12px;opacity:.85">Au menu ce soir</div><div style="font-size:17px;font-weight:500">${m.n}</div></div>
+    <div style="font-size:14px;font-weight:500">Voir la recette</div></div>
+  <div class="rgrid">${list.map(r=>`<div class="rc" onclick="openRecipe('${r.slug}')">${img(110)}<div class="rn">${r.n}</div><div class="t">${mi('timer',16)} ${r.t} min</div></div>`).join('')}</div>
+</div>`;}
+function fmtQ(q,base){if(q===null)return '';return (Math.round(q*K.serv/base*10)/10).toString().replace('.',',');}
+function stepText(t){return t.replace(/(\d+(?: à \d+)?) (minutes?|secondes?|heures?)/g,m=>`<button class="tchip" onclick="event.stopPropagation();log('Minuterie Android : ${m}')">${mi('timer',17)} ${m}</button>`);}
+function recipeScreen(){const r=RECIPES.find(x=>x.slug===K.open);const done=Object.values(K.done).filter(Boolean).length;return `
+  <div class="rhead"><button class="back" onclick="K.open=null;render()">${mi('arrow_back')}Retour</button></div>
+  <div class="section" style="flex-direction:row;align-items:center;gap:14px;background:var(--pc);color:var(--onPc)">
+    <div style="width:88px;border-radius:20px;overflow:hidden;flex:none">${img(88)}</div>
+    <div style="flex:1"><div style="font-size:22px;line-height:1.2">${r.n}</div><div style="font-size:14px;opacity:.85;margin-top:4px">${r.t} min</div></div></div>
+  <div class="section"><div style="display:flex;justify-content:space-between;align-items:center"><div class="stitle" style="padding:0 0 0 8px">Ingrédients · ${done} / ${r.ing.length} prêts</div>
+    <div class="serv"><button onclick="K.serv=Math.max(1,K.serv-1);render()">${mi('remove')}</button><span style="font-size:18px;width:22px;text-align:center">${K.serv}</span><button onclick="K.serv++;render()">${mi('add')}</button></div></div>
+    <div>${r.ing.map((i,ix)=>`<div class="ing${K.done[ix]?' d':''}" onclick="K.done[${ix}]=!K.done[${ix}];render()"><span class="box">${K.done[ix]?mi('check',18):''}</span><span><b>${fmtQ(i[0],r.serv)} ${i[1]}</b> ${i[2]}</span></div>`).join('')}</div></div>
+  <div class="section"><div class="stitle">Étapes · Étape ${K.step+1} sur ${r.steps.length}</div>
+    ${r.steps.map((s,ix)=>`<div class="step${ix===K.step?' cur':''}" onclick="K.step=${ix};render()"><span class="num">${ix+1}</span><span>${stepText(s)}</span></div>`).join('')}
+    <div class="stepnav"><button class="p" onclick="K.step=Math.max(0,K.step-1);render()">Étape précédente</button><button class="n" onclick="K.step=Math.min(${r.steps.length-1},K.step+1);render()">Étape suivante</button></div></div>`;}
+function openRecipe(s){K.open=s;K.serv=RECIPES.find(x=>x.slug===s).serv;K.done={};K.step=0;document.getElementById('scroll').scrollTop=0;render();}
+function renderKeepFocus(){const p=document.activeElement.selectionStart;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(p,p);}
+
+/* Rooms (SalonApp): Salon = Volet + Lumières (no colours); Cuisine = CuisineApp; Chambre = ChambrePanels */
+const ROOMS=[['salon','chair','Salon'],['cuisine','kitchen','Cuisine'],['chambre','bed','Chambre']];
+const CONTENT={
+  salon:()=>lightPanel('salon',{title:'Lumières',colors:false})+coverPanel('salon'),
+  cuisine:()=>coverPanel('cuisine')+recipesPanel(),
+  chambre:()=>lightPanel('chambre',{title:'Lumière',colors:true})+coverPanel('chambre')+scenesPanel()
+};
+// RoomRail summaries
+function summary(r){const s=S[r];
+  const c=s.cover>=100?'volet ouvert':s.cover<=0?'volet fermé':'volet à '+s.cover+' %';
+  if(r==='cuisine')return c.charAt(0).toUpperCase()+c.slice(1)+' · minuteurs prêts';
+  const pl=r==='salon';const l=s.light?(pl?'Lumières à ':'Lumière à ')+s.pct+' %':(pl?'Lumières éteintes':'Lumière éteinte');return l+' · '+c;}
+function header(){return `
+  <div class="hdr"><div><div class="d">Mardi 21 octobre</div><div class="o"><span class="dot"></span>En ligne</div></div><div class="gear" onclick="log('Réglages')">${mi('settings')}</div></div>
+  <div class="weather" onclick="log('Météo : Heures / Semaine')"><div class="wnow">${mi('wb_cloudy',32)}14°</div>
+    <div class="hours">${[['22h','13°'],['23h','12°'],['0h','12°'],['1h','11°'],['2h','11°']].map(h=>`<div>${h[0]}<b>${h[1]}</b></div>`).join('')}</div></div>`;}
+function roomHead(r){return `<div class="room" id="sec-${r}"><span>${ROOMS.find(x=>x[0]===r)[2]}</span><span>${r==='salon'?'21,4 °C · 52 %':''}</span></div>`;}
+
+function footerHtml(){const go=r=>`tab='${r}';document.getElementById('scroll').scrollTop=0;render()`;
+  if(footer==='rail')return `<div class="navbar">${ROOMS.map(r=>`<button class="${tab===r[0]?'sel':''}" onclick="${go(r[0])}">${mi(r[1])}<b>${r[2]}</b><small>${summary(r[0])}</small></button>`).join('')}</div>`;
+  if(footer==='m3')return `<div class="m3nav">${ROOMS.map(r=>`<button class="${tab===r[0]?'sel':''}" onclick="${go(r[0])}"><span class="pill">${mi(r[1])}</span>${r[2]}</button>`).join('')}</div>`;
+  return `<div class="floatwrap"><div class="float">${ROOMS.map(r=>`<button class="${tab===r[0]?'sel':''}" onclick="${go(r[0])}">${mi(r[1])}<b>${r[2]}</b></button>`).join('')}</div></div>`;}
+function setFooter(f){footer=f;nav='tabs';render();}
+function render(){
+  const sc=document.getElementById('scroll');const top=sc.scrollTop;
+  document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('sel',b.dataset.nav===nav));
+  document.querySelectorAll('[data-ft]').forEach(b=>b.classList.toggle('sel',nav==='tabs'&&b.dataset.ft===footer));
+  if(K.open){sc.innerHTML=recipeScreen();document.getElementById('nav').innerHTML='';sc.scrollTop=top;bind();return;}
+  if(nav==='tabs'){
+    sc.innerHTML=header()+roomHead(tab)+CONTENT[tab]();
+    document.getElementById('nav').innerHTML=footerHtml();
+  } else {
+    sc.innerHTML=header()+`<div class="jump">${ROOMS.map(r=>`<button onclick="jump('${r[0]}')">${mi(r[1],18)} ${r[2]}</button>`).join('')}</div>`+ROOMS.map(r=>roomHead(r[0])+CONTENT[r[0]]()).join('');
+    document.getElementById('nav').innerHTML='';
+  }
+  sc.style.paddingBottom=(nav==='tabs'&&footer==='float')?'96px':'';
+  sc.scrollTop=top;bind();
+}
+/* Drag on the vertical sliders, like VerticalSlider's pointerInput */
+function bind(){document.querySelectorAll('.vs:not(.off)').forEach(el=>{
+  el.onpointerdown=e=>{el.setPointerCapture(e.pointerId);const top=el.dataset.top==='true';
+    const f=ev=>{const rc=el.getBoundingClientRect();let v=Math.max(0,Math.min(1,(ev.clientY-rc.top)/rc.height));return top?v:1-v;};
+    const move=ev=>preview(el.dataset.id,f(ev),el);
+    move(e);el.onpointermove=move;
+    el.onpointerup=ev=>{el.onpointermove=null;el.onpointerup=null;commit(el.dataset.id,f(ev));};};});}
+function preview(id,v,el){const [r,k]=id.split(':');const fill=el.querySelector('.fill'),th=el.querySelector('.thumb'),lb=el.querySelector('.lbl');
+  const top=el.dataset.top==='true';if(fill)fill.style.height=(v*100)+'%';th.style.top=`clamp(10px, calc(${(top?v:1-v)*100}% - 4px), calc(100% - 18px))`;
+  if(lb){if(k==='bri')lb.textContent=Math.round(v*100)+' %';if(k==='k')lb.textContent=Math.round(2000+v*4500)+' K';}}
+function commit(id,v){const [r,k]=id.split(':');
+  if(k==='bri'){const p=Math.round(v*100);S[r].light=p>0;if(p>0)S[r].pct=p;log(`${r} : luminosité ${p} %`);render();}
+  else if(k==='k'){S[r].k=Math.round((2000+v*4500)/100)*100;log(`${r} : ${S[r].k} K`);render();}
+  else cover(r,100-Math.round(v*100));}
+function jump(r){const el=document.getElementById('sec-'+r);document.getElementById('scroll').scrollTo({top:el.offsetTop-60,behavior:'smooth'});}
+function setNav(n){nav=n;document.getElementById('scroll').scrollTop=0;render();}
+function toggle(r){S[r].light=!S[r].light;log(`${r} : ${S[r].light?'allumée':'éteinte'}`);render();}
+function defaut(r){Object.assign(S[r],{light:true,pct:70,k:2700});log(`${r} : par défaut 70 % · 2700 K`);render();}
+function swatch(r,c){S[r].light=true;log(`${r} : couleur ${c}`);render();}
+function scene(n){S.chambre.scene=n;log('Ambiance '+n);render();}
+function cover(r,v){const s=S[r];clearInterval(T[r]);
+  if(v==='stop'||s.cover===v){if(s.target!==null)log(`${r} : volet arrêté`);s.target=null;render();return;}
+  s.target=v;log(`${r} : volet → ${v} %`);
+  T[r]=setInterval(()=>{s.cover+=s.target>s.cover?1:-1;if(s.cover===s.target){clearInterval(T[r]);s.target=null;}render();},60);render();}
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toTimeString().slice(0,5);},10000);
+render();
+</script>
+</body>
+</html>
