@@ -6,9 +6,11 @@ heure et météo, veille de l'écran pilotée par la caméra frontale.
 
 La même app sert aussi de **dashboard de la cuisine** (recettes Mealie) et de **dashboard global du salon** (Réglages → « Pièce de cette tablette » → Salon) :
 volet et lumières du salon, onglets Cuisine et Chambre, et annonces vocales de l'agenda.
+Sur un **téléphone**, elle affiche ce dashboard global en portrait, et propose trois **widgets** d'écran d'accueil.
 
 Specs : `docs/superpowers/specs/2026-10-16-dashboard-chambre-design.md`,
-`docs/superpowers/specs/2026-10-17-salon-design.md`
+`docs/superpowers/specs/2026-10-17-salon-design.md`,
+`docs/superpowers/specs/2026-10-21-foyer-mobile-widgets-design.md`
 
 ## Compiler
 
@@ -67,9 +69,9 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
 
 ## Mode salon
 
-- **Onglets** (rail à gauche) : Salon (par défaut), Cuisine (volet, minuteurs 5/10 min, liste de courses,
-  prise de la tablette cuisine), Chambre (identique au dashboard de la chambre). Retour automatique sur
-  Salon après 2 min sans toucher.
+- **Onglets** (rail à gauche) : Salon (par défaut), Cuisine (identique au dashboard de la cuisine : volet et
+  recettes Mealie, adresse et clé Mealie dans Réglages → Salon), Chambre (identique au dashboard de la chambre).
+  Retour automatique sur Salon après 2 min sans toucher, sauf pendant une recette.
 - **Annonces vocales** (synthèse vocale Android, voix française) :
   - agenda **Travail** : « Réunion dans 5 minutes : <titre> », une seule fois,
     avec un bandeau en haut de l'écran ;
@@ -101,6 +103,36 @@ Réglages → Pièce : **Cuisine**, puis l'**adresse Mealie** et une **clé API 
   un appui crée une minuterie dans l'horloge Android. L'écran ne se met pas en veille pendant une recette.
 - Les ingrédients « non analysés » dans Mealie s'affichent tels quels : utiliser « Analyser les ingrédients » dans
   Mealie pour qu'ils suivent les portions.
+
+## Téléphone
+
+Sur un téléphone (écran de moins de 600 dp, ex. Pixel 9), l'app affiche automatiquement le **dashboard global**,
+quelle que soit la pièce réglée : les panneaux des tablettes (Lumière, Volet, Ambiance, recettes) empilés en
+portrait, et une **barre flottante** en bas pour passer de Salon à Cuisine ou Chambre.
+
+- Salon : lumières et volet du salon, température et humidité ; Cuisine : le dashboard cuisine (volet et recettes
+  Mealie) ; Chambre : le dashboard de la chambre.
+- Pas sur le téléphone : agenda, veille par la caméra, annonces vocales, retour automatique sur Salon, batterie
+  envoyée à Home Assistant, démarrage automatique, mode kiosque. L'écran reste allumé seulement pendant une recette.
+- Réglages : URL + jeton Home Assistant, adresse + clé Mealie. L'app ne marche que sur le réseau de la maison ;
+  à distance, passer par WireGuard et saisir l'**adresse IP** de Home Assistant (`homeassistant.local` ne passe
+  généralement pas par un VPN).
+- Le même APK s'installe sur les tablettes (32 bits) et le téléphone (64 bits).
+
+## Widgets
+
+Trois widgets d'écran d'accueil (appui long sur l'écran d'accueil → Widgets → Foyer), au style Google Home,
+couleurs Ambre :
+
+- **Chambre** (4×2) et **Salon** (4×2, avec température · humidité) : tuile Lumière (toucher = allumer / éteindre,
+  − / + = luminosité de 10 en 10 %, une lumière éteinte s'allume à 10 %) et tuile Volet (toucher = ouvrir s'il est
+  fermé, fermer s'il est ouvert, arrêter s'il bouge ; ▲ / ▼).
+- **Cuisine** (4×1) : tuile Volet avec ▲ ■ ▼.
+- Le bouton ↗ en haut à droite (ou le titre) ouvre Foyer sur la pièce.
+
+Les widgets parlent à Home Assistant directement (API REST, mêmes URL et jeton que l'app), même app fermée. Ils se
+mettent à jour après chaque appui (puis 3 s et 20 s après pour un volet), toutes les 15 min, et quand on quitte
+l'app. Si Home Assistant ne répond pas, ils gardent le dernier état connu, grisé.
 
 ## Batterie dans Home Assistant
 
