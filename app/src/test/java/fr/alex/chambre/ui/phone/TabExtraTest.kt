@@ -18,3 +18,13 @@ class TabExtraTest {
         assertEquals(SalonTab.SALON, tabFromExtra("x"))
     }
 }
+
+class TabRequestTest {
+    @Test
+    fun `asking twice for the same room is a new request`() {
+        val first = TabRequest.from("chambre")
+        val again = first.next("chambre")
+        assertEquals(SalonTab.CHAMBRE, again.tab)
+        org.junit.Assert.assertNotEquals(first, again)
+    }
+}

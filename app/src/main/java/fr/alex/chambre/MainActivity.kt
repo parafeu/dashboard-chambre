@@ -41,8 +41,7 @@ import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.FormFactor
 import fr.alex.chambre.ui.phone.EXTRA_TAB
 import fr.alex.chambre.ui.phone.PhoneApp
-import fr.alex.chambre.ui.phone.tabFromExtra
-import fr.alex.chambre.ui.salon.SalonTab
+import fr.alex.chambre.ui.phone.TabRequest
 import fr.alex.chambre.widget.WidgetRefreshWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -62,7 +61,7 @@ class MainActivity : ComponentActivity() {
     private val vm: DashboardViewModel by viewModels()
     private val phone get() = vm.formFactor == FormFactor.PHONE
     /** Phone: the room a widget asked for (see EXTRA_TAB). */
-    private val startTab = mutableStateOf(SalonTab.SALON)
+    private val startTab = mutableStateOf(TabRequest.from(null))
     private var camera: CameraMotionSource? = null
     private val touchGate by lazy {
         TouchGate(isAsleep = { vm.presence.state.value == Presence.ASLEEP }, onTouch = { vm.presence.onTouch() })
@@ -78,7 +77,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
         // Wall tablets in landscape; the phone layout is portrait.
         requestedOrientation = if (phone) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        startTab.value = tabFromExtra(intent.getStringExtra(EXTRA_TAB))
+        startTab.value = TabRequest.from(intent.getStringExtra(EXTRA_TAB))
         if (phone) {
             // A normal phone app; the screen only stays on while a recipe is open, as on the tablet.
             lifecycleScope.launch {
@@ -119,7 +118,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        startTab.value = tabFromExtra(intent.getStringExtra(EXTRA_TAB))
+        startTab.value = startTab.value.next(intent.getStringExtra(EXTRA_TAB))
     }
 
     private fun startCamera() {
@@ -180,7 +179,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(vm: DashboardViewModel, phone: Boolean, startTab: SalonTab) {
+private fun App(vm: DashboardViewModel, phone: Boolean, startTab: TabRequest) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val presence by vm.presence.state.collectAsStateWithLifecycle()

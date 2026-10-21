@@ -62,6 +62,15 @@ fun tabFromExtra(value: String?): SalonTab = when (value) {
     else -> SalonTab.SALON
 }
 
+/** A room asked for by a widget; [seq] makes a second request for the same room a new one. */
+data class TabRequest(val tab: SalonTab, val seq: Int) {
+    fun next(extra: String?) = TabRequest(tabFromExtra(extra), seq + 1)
+
+    companion object {
+        fun from(extra: String?) = TabRequest(tabFromExtra(extra), 0)
+    }
+}
+
 // Panel heights: the tablet panels fill their column; stacked on a phone they get a fixed height.
 private val LIGHT_COLORS = 480.dp
 private val LIGHT_PLAIN = 440.dp
@@ -70,7 +79,7 @@ private val SCENES = 400.dp
 
 /** The phone: the living-room tablet's rooms, their tablet panels stacked, and a floating room bar. */
 @Composable
-fun PhoneApp(vm: DashboardViewModel, startTab: SalonTab, onOpenSettings: () -> Unit) {
+fun PhoneApp(vm: DashboardViewModel, request: TabRequest, onOpenSettings: () -> Unit) {
     val entities by vm.ha.entities.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val forecast by vm.ha.forecast.collectAsStateWithLifecycle()
@@ -82,7 +91,7 @@ fun PhoneApp(vm: DashboardViewModel, startTab: SalonTab, onOpenSettings: () -> U
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
 
-    var tab by rememberSaveable(startTab) { mutableStateOf(startTab) }
+    var tab by rememberSaveable(request) { mutableStateOf(request.tab) }
     val online = conn == ConnState.CONNECTED
     val scroll = rememberScrollState()
     LaunchedEffect(tab) { scroll.scrollTo(0) }
