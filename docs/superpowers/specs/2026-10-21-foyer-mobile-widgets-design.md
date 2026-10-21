@@ -66,12 +66,10 @@ Mealie URL + API key. Room, camera, voice, calendar, boot and battery sections a
 
 The salon tablet's « Cuisine » tab shows the kitchen dashboard instead of `salon/CuisineScreen.kt`.
 
-**Builder decision (not confirmed by the user, he did not object):** what the old screen had that the kitchen dashboard
-lacks — the three HA kitchen timers with 5 / 10 min buttons (their end is still announced aloud by the salon
-tablet), the shopping-list count and the kitchen-tablet plug — is **added to the kitchen dashboard** so nothing is
-lost, and therefore appears on the kitchen tablet, the salon tablet and the phone alike. Placement inside the kitchen
-dashboard is left to the builder, using the existing tablet components (`Section`, the timer rows, `InfoTile`).
-The rail summary for Cuisine stays « Volet … · minuteurs … ».
+**User decision:** copy the kitchen dashboard as it is, add nothing to it. The old screen's extras (the three HA
+kitchen timers with 5 / 10 min buttons, the shopping-list count, the kitchen-tablet plug) are **not** carried over;
+`salon/CuisineScreen.kt` goes away. Announcements are not UI and are untouched: the salon tablet still announces the
+end of an HA kitchen timer.
 
 ## Widgets
 
@@ -128,6 +126,6 @@ Behaviour:
 
 ## Left to the builder
 
-Exact phone breakpoint and panel heights; how widgets are implemented (Glance or RemoteViews) and refreshed; where the
-timers / shopping list / plug go inside the kitchen dashboard; the default tab when the app opens without a widget
-(Salon unless there is a better reason); version number bump and README update.
+Exact phone breakpoint and panel heights; how widgets are implemented (Glance or RemoteViews) and refreshed; the
+wording of the Cuisine rail summary now that the timers are no longer shown in that tab; the default tab when the app opens without a widget
+(Salon unless opened from a widget); version number bump and README update.
