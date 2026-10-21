@@ -1,6 +1,9 @@
 package fr.alex.chambre
 
 import android.Manifest
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.graphics.Color
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.MotionEvent
@@ -9,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -34,6 +38,14 @@ import fr.alex.chambre.ui.cuisine.CuisineApp
 import fr.alex.chambre.presence.Presence
 import fr.alex.chambre.presence.TouchGate
 import fr.alex.chambre.settings.Settings
+import fr.alex.chambre.settings.FormFactor
+import fr.alex.chambre.settings.formFactorFor
+import fr.alex.chambre.ui.phone.EXTRA_TAB
+import fr.alex.chambre.ui.phone.PhoneApp
+import fr.alex.chambre.ui.phone.TabRequest
+import fr.alex.chambre.widget.WidgetRefreshWorker
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import fr.alex.chambre.settings.SettingsScreen
 import fr.alex.chambre.ui.DashboardScreen
 import fr.alex.chambre.ui.salon.SalonApp
@@ -48,6 +60,9 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val vm: DashboardViewModel by viewModels()
+    private val phone get() = vm.formFactor == FormFactor.PHONE
+    /** Phone: the room a widget asked for (see EXTRA_TAB). */
+    private val startTab = mutableStateOf(TabRequest.from(null))
     private var camera: CameraMotionSource? = null
     private val touchGate by lazy {
         TouchGate(isAsleep = { vm.presence.state.value == Presence.ASLEEP }, onTouch = { vm.presence.onTouch() })
@@ -58,18 +73,37 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Wall tablets in landscape, the phone layout in portrait: asked before the window exists, so no flash.
+        requestedOrientation = when (formFactorFor(resources.configuration.smallestScreenWidthDp)) {
+            FormFactor.PHONE -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            FormFactor.TABLET -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        hideSystemBars()
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() = Unit
-        })
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            startCamera()
+        // The app is always dark: light status / navigation bar icons.
+        enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
+        startTab.value = TabRequest.from(intent.getStringExtra(EXTRA_TAB))
+        if (phone) {
+            // A normal phone app; the screen only stays on while a recipe is open, as on the tablet.
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    vm.cuisine.opened.map { it != null }.distinctUntilChanged().collect { cooking ->
+                        if (cooking) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+            }
         } else {
-            cameraPermission.launch(Manifest.permission.CAMERA)
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            hideSystemBars()
+            onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = Unit
+            })
+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                startCamera()
+            } else {
+                cameraPermission.launch(Manifest.permission.CAMERA)
+            }
         }
 
         lifecycleScope.launch {
@@ -83,7 +117,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        setContent { ChambreTheme { App(vm) } }
+        setContent { ChambreTheme { App(vm, phone, startTab.value) } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        startTab.value = startTab.value.next(intent.getStringExtra(EXTRA_TAB))
     }
 
     private fun startCamera() {
@@ -119,6 +158,18 @@ class MainActivity : ComponentActivity() {
         return super.dispatchTouchEvent(ev)
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (phone) vm.foreground.value = true
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (phone) vm.foreground.value = false
+        // What was changed in the app shows on the home-screen widgets when you leave it.
+        if (phone) WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<WidgetRefreshWorker>().build())
+    }
+
     override fun onDestroy() {
         camera?.stop()
         super.onDestroy()
@@ -126,7 +177,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideSystemBars()
+        if (hasFocus && !phone) hideSystemBars()
     }
 
     private fun hideSystemBars() {
@@ -138,7 +189,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(vm: DashboardViewModel) {
+private fun App(vm: DashboardViewModel, phone: Boolean, startTab: TabRequest) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val presence by vm.presence.state.collectAsStateWithLifecycle()
@@ -164,6 +215,7 @@ private fun App(vm: DashboardViewModel) {
             LaunchedEffect(Unit) { vm.refreshCalendars() }
             SettingsScreen(
                 initial = s,
+                phone = phone,
                 conn = conn,
                 battery = battery,
                 report = report,
@@ -180,7 +232,9 @@ private fun App(vm: DashboardViewModel) {
                 onAllowCalendars = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
             )
         } else {
-            when (s.room) {
+            if (phone) {
+                PhoneApp(vm, startTab, onOpenSettings = { settingsOpen = true })
+            } else when (s.room) {
                 Room.SALON -> SalonApp(vm, s, onOpenSettings = { settingsOpen = true })
                 Room.CUISINE -> CuisineApp(vm, onOpenSettings = { settingsOpen = true })
                 Room.CHAMBRE -> DashboardScreen(vm, onOpenSettings = { settingsOpen = true })

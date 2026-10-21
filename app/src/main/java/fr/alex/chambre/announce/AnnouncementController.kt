@@ -55,6 +55,8 @@ class AnnouncementController(
     private val tickMs: Long = 5_000,
     private val refreshMs: Long = 60_000,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** Whether this device announces (see deviceFeatures). */
+    private val enabled: (Settings) -> Boolean = { it.room == Room.SALON },
 ) {
     private val empty = Tick(emptyList(), null, emptyList())
     private val _state = MutableStateFlow(empty)
@@ -76,14 +78,14 @@ class AnnouncementController(
     init {
         scope.launch {
             settings
-                .map { Triple(it.room, it.workCalendar, it.alertsCalendar) }
+                .map { Triple(enabled(it), it.workCalendar, it.alertsCalendar) }
                 .distinctUntilChanged()
-                .collectLatest { (room, work, alerts) ->
+                .collectLatest { (on, work, alerts) ->
                     lock.withLock { engine = null }
                     _state.value = empty
                     _error.value = null
                     _upcoming.value = emptyList()
-                    if (room != Room.SALON) return@collectLatest
+                    if (!on) return@collectLatest
                     run(work, alerts)
                 }
         }

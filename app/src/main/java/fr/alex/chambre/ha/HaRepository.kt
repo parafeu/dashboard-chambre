@@ -55,7 +55,8 @@ interface HaApi {
 class HaRepository(
     scope: CoroutineScope,
     private val client: OkHttpClient,
-    config: Flow<HaConfig>,
+    /** null = paused (phone in the background): no connection, the last states are kept. */
+    config: Flow<HaConfig?>,
     private val backoffMs: List<Long> = listOf(1_000, 2_000, 4_000, 8_000, 16_000, 30_000),
 ) : HaApi {
     private val _conn = MutableStateFlow(ConnState.CONNECTING)
@@ -86,7 +87,11 @@ class HaRepository(
         scope.launch { config.combine(retries) { cfg, _ -> cfg }.collectLatest { run(it) } }
     }
 
-    private suspend fun run(cfg: HaConfig) {
+    private suspend fun run(cfg: HaConfig?) {
+        if (cfg == null) {
+            _conn.value = ConnState.CONNECTING
+            return
+        }
         if (cfg.token.isBlank()) {
             _conn.value = ConnState.OFFLINE
             return

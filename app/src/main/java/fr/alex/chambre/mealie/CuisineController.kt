@@ -11,6 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -34,6 +39,10 @@ class CuisineController(
     settings: Flow<Settings>,
     private val apiFor: (Settings) -> MealieApi?,
     private val refreshMs: Long = 30 * 60_000L,
+    /** Whether this device reads Mealie (see deviceFeatures). */
+    private val enabled: (Settings) -> Boolean = { it.room == Room.CUISINE },
+    /** false while the phone app is in the background: no polling, the list is kept and read again on return. */
+    private val active: Flow<Boolean> = flowOf(true),
 ) {
     private val _recipes = MutableStateFlow<List<RecipeSummary>>(emptyList())
     val recipes: StateFlow<List<RecipeSummary>> = _recipes.asStateFlow()
@@ -55,7 +64,7 @@ class CuisineController(
     init {
         scope.launch {
             settings
-                .map { if (it.room == Room.CUISINE) it else null }
+                .map { if (enabled(it)) it else null }
                 .distinctUntilChanged { a, b -> a?.mealieUrl == b?.mealieUrl && a?.mealieToken == b?.mealieToken && (a == null) == (b == null) }
                 .collectLatest { s ->
                     api = null
@@ -70,8 +79,13 @@ class CuisineController(
                     }
                     api = a
                     while (true) {
+                        active.first { it }
                         load(a)
-                        withTimeoutOrNull(refreshMs) { poke.receive() }
+                        // Until the next refresh, a poke, or the app leaving the screen.
+                        val paused = withTimeoutOrNull(refreshMs) {
+                            merge(poke.receiveAsFlow().map { false }, active.filter { !it }.map { true }).first()
+                        }
+                        if (paused == true) active.first { it }
                     }
                 }
         }

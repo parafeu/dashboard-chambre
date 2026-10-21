@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widgets style Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300..700&display=swap" rel="stylesheet">
+<style>
+  /* Two palettes: the app's Ambre, or Material You colours taken from a blue wallpaper */
+  :root, .ambre{--bg:#1d1611;--tile:#2f2620;--tileOn:#ffb86b;--onTile:#f0dfd3;--onTileOn:#3f2200;--sub:#cbb8a9;--subOn:#6a3b00;--icon:#43372e;--iconOn:#ffdcbe;--fillTrack:#3d322a;--fillSoft:#8a5520}
+  .you{--bg:#1b1f26;--tile:#2a303a;--tileOn:#a8c8ff;--onTile:#e1e2ea;--onTileOn:#05305f;--sub:#b5bcc9;--subOn:#244a7d;--icon:#3a4250;--iconOn:#d5e3ff;--fillTrack:#353c48;--fillSoft:#2f5a92}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0f1115;color:#e8e8e8;font-family:"Roboto Flex",system-ui,sans-serif;display:flex;gap:40px;justify-content:center;align-items:flex-start;padding:28px 16px;flex-wrap:wrap}
+  .panel{width:330px}
+  h1{font-size:20px;margin:0 0 6px;font-weight:600}
+  .sub{font-size:13px;color:#9aa;margin:0 0 18px;line-height:1.5}
+  .pick{background:#1a1d23;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+  .pick h3{margin:0 0 8px;font-size:14px}
+  .opts{display:flex;flex-direction:column;gap:6px}
+  .opt{background:#2a2f38;border:1px solid transparent;color:#ddd;border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer;text-align:left;font-family:inherit;line-height:1.4}
+  .opt b{display:block;font-size:13px}
+  .opt.sel{border-color:#ffb86b;background:#3a2c1c}
+  .row{display:flex;gap:6px}.row .opt{flex:1;text-align:center}
+  .log{font-size:12px;color:#9aa;margin-top:14px;min-height:60px;line-height:1.5}
+
+  .phone{width:372px;height:826px;border-radius:46px;background:#000;padding:10px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+  .screen{width:100%;height:100%;border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .screen.ambre{background:radial-gradient(120% 80% at 20% 10%,#7a5a3c 0%,#3b2a1e 45%,#160f0a 100%)}
+  .screen.you{background:radial-gradient(120% 80% at 20% 10%,#4b6a9a 0%,#25344f 45%,#111826 100%)}
+  .status{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:13px;color:#fff}
+  .cam{position:absolute;top:14px;left:50%;width:12px;height:12px;border-radius:50%;background:#000;transform:translateX(-50%)}
+  .grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(5,minmax(0,1fr));padding:14px 10px 4px}
+  .cell{padding:6px;min-height:0;min-width:0}
+  .dots{display:flex;gap:6px;justify-content:center;padding:6px 0}
+  .dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.35)}.dots i.a{background:#fff}
+  .dock{display:flex;justify-content:space-around;padding:6px 18px 8px}
+  .dock span{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16)}
+  .search{margin:4px 16px 18px;height:48px;border-radius:24px;background:rgba(255,255,255,.14)}
+  .nav{height:4px;width:110px;border-radius:2px;background:rgba(255,255,255,.7);margin:0 auto 8px}
+
+  /* Home-style widget */
+  .w{height:100%;width:100%;background:var(--bg);border-radius:28px;padding:10px;display:flex;flex-direction:column;gap:8px}
+  .wtitle{font-size:13px;font-weight:600;color:var(--onTile);padding:2px 6px 0;display:flex;justify-content:space-between;cursor:pointer}
+  .wtitle span{color:var(--sub);font-weight:400}
+  .tiles{flex:1;display:grid;gap:8px;min-height:0}
+  .t{position:relative;border-radius:22px;background:var(--tile);color:var(--onTile);padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;overflow:hidden;min-height:0;user-select:none;transition:background .25s,color .25s}
+  .t.on{background:var(--tileOn);color:var(--onTileOn)}
+  .t .ic{width:40px;height:40px;border-radius:50%;background:var(--icon);color:var(--iconOn);display:flex;align-items:center;justify-content:center;flex:none;position:relative;z-index:2;transition:background .25s}
+  .t.on .ic{background:rgba(255,255,255,.35);color:var(--onTileOn)}
+  .t .ic svg{width:22px;height:22px;fill:currentColor}
+  .t .tx{position:relative;z-index:2;min-width:0;overflow:hidden}
+  .t .tx .n,.t .tx .s{overflow:hidden;text-overflow:ellipsis}
+  .t .n{font-size:15px;font-weight:600;white-space:nowrap}
+  .t .s{font-size:12.5px;color:var(--sub);white-space:nowrap;margin-top:1px}
+  .t.on .s{color:var(--subOn)}
+  .t.col{flex-direction:column;align-items:flex-start;justify-content:space-between}
+  /* slider-look tile: fill = level, invisible tap zones set the level */
+  .fill{position:absolute;inset:0;width:0;background:var(--fillSoft);z-index:1;transition:width .25s,height .1s linear}
+  .t.slider,.t.slider.on{background:var(--fillTrack);color:var(--onTile)}
+  .t.slider .ic,.t.slider.on .ic{background:rgba(0,0,0,.25);color:var(--onTile)}
+  .t.slider.on .ic{background:var(--tileOn);color:var(--onTileOn)}
+  .t.slider .tx .s{color:inherit;opacity:.8}
+  .zones{position:absolute;inset:0;display:flex;z-index:3}
+  .zones.v{flex-direction:column}
+  .zones i{flex:1}
+  .zones i:hover{background:rgba(255,255,255,.06)}
+  .fillv{position:absolute;left:0;right:0;top:0;background:repeating-linear-gradient(var(--tile) 0 9px,var(--fillTrack) 9px 11px);z-index:1;transition:height .1s linear}
+  .chip{position:relative;z-index:3;margin-left:auto;display:flex;gap:6px}
+  .chip button{width:36px;height:36px;border-radius:50%;border:0;background:rgba(0,0,0,.18);color:inherit;font-size:15px;cursor:pointer;font-family:inherit}
+  .t:not(.on) .chip button{background:var(--icon)}
+  .t.col .chip{margin-left:0;width:100%}
+  .t.col .chip button{flex:1;border-radius:14px}
+  .wtitle{align-items:center}.wtitle .tr{display:flex;align-items:center;gap:8px}
+  .open{width:28px;height:28px;border-radius:50%;border:0;background:var(--tile);color:var(--onTile);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+  .open svg{width:15px;height:15px;fill:currentColor}
+  .w .chip[style] button{width:32px;height:32px}
+  .chip button.op svg{width:16px;height:16px;fill:currentColor}
+  .t.kt{padding:6px 12px}.t.kt .ic{width:34px;height:34px}
+  .hint{position:absolute;right:12px;bottom:8px;font-size:10px;opacity:.55;z-index:2}
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>Style Google Home · Pixel 9</h1>
+  <p class="sub">Grandes tuiles arrondies, une tuile par appareil, la tuile se remplit de couleur quand c'est allumé ou ouvert. Les trois pièces ont le même style. Chambre H1, salon SA, cuisine KA. Chaque widget a maintenant un bouton ↗ pour ouvrir l'app sur la pièce (le titre ouvre aussi l'app).</p>
+  <div class="pick"><h3>🛏 Chambre · H1 (retenu)</h3><p class="sub" style="margin:0">Deux tuiles larges, figé.</p></div>
+  <div class="pick"><h3>🛋 Salon · SA (retenu)</h3><p class="sub" style="margin:0">Comme la chambre, température dans le titre.</p></div>
+  <div class="pick"><h3>🍳 Cuisine · KA (retenu)</h3><p class="sub" style="margin:0">Tuile large, ▲ ■ ▼.</p><div id="opts" style="display:none"></div></div>
+  <div class="pick"><h3>Couleurs</h3><div class="row">
+    <button class="opt" data-pal="ambre" onclick="pal('ambre')">Ambre (l'app)</button>
+    <button class="opt" data-pal="you" onclick="pal('you')">Fond d'écran (Material You)</button></div></div>
+  <div class="log" id="log"></div>
+</div>
+
+<div class="phone">
+  <div class="screen ambre" id="screen">
+    <div class="cam"></div>
+    <div class="status"><span id="clock">21:47</span><span>▾ ◢ ▮ 82 %</span></div>
+    <div class="grid" id="grid"></div>
+    <div class="dots"><i></i><i class="a"></i></div>
+    <div class="dock"><span></span><span></span><span></span><span></span></div>
+    <div class="search"></div>
+    <div class="nav"></div>
+  </div>
+</div>
+
+<script>
+const ICON = {
+  bulb:'<svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2z"/></svg>',
+  blind:'<svg viewBox="0 0 24 24"><path d="M20 19V3H4v16H2v2h20v-2h-2zM6 5h12v3H6V5zm0 5h12v3H6v-3zm0 5h12v4H6v-4z"/></svg>',
+  temp:'<svg viewBox="0 0 24 24"><path d="M15 13V5a3 3 0 0 0-6 0v8a5 5 0 1 0 6 0zm-3-9a1 1 0 0 1 1 1v3h-2V5a1 1 0 0 1 1-1z"/></svg>',
+  open:'<svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>',
+  sun:'<svg viewBox="0 0 24 24"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM11 1h2v3h-2zm0 19h2v3h-2zM1 11h3v2H1zm19 0h3v2h-3zM4.2 5.6l1.4-1.4 2.1 2.1-1.4 1.4zm12.1 12.1 1.4-1.4 2.1 2.1-1.4 1.4zM18.4 4.2l1.4 1.4-2.1 2.1-1.4-1.4zM6.3 16.3l1.4 1.4-2.1 2.1-1.4-1.4z"/></svg>'
+};
+const S = {chambre:{light:true,pct:40,cover:50,target:null,timer:null},
+           salon:{light:false,pct:60,cover:100,target:null,timer:null},
+           cuisine:{cover:100,target:null,timer:null}};
+const NAMES={chambre:'Chambre',salon:'Salon',cuisine:'Cuisine'};
+const VARIANTS=[
+  {id:'KA',w:4,h:1,t:'Tuile large (4×1)',d:'Même tuile que la chambre et le salon : toucher = ouvrir/fermer, boutons ronds ▲ ■ ▼ au bout. Remplit exactement la page.'},
+  {id:'KB',w:2,h:1,t:'Tuile simple (2×1)',d:'Toucher = ouvrir s\x27il est fermé, fermer s\x27il est ouvert, arrêter s\x27il bouge. Laisse 2 cases libres.'},
+  {id:'KC',w:2,h:1,t:'Tuile + boutons (2×1)',d:'Icône et état compacts, boutons ronds ▲ ▼ à droite. Laisse 2 cases libres.'}
+];
+let variant='KA', palette='ambre';
+
+function log(m){const l=document.getElementById('log');l.innerHTML='• '+m+'<br>'+l.innerHTML.split('<br>').slice(0,4).join('<br>');}
+function cText(r){const s=S[r];
+  if(s.target!==null) return s.target>s.cover?'Ouverture…':'Fermeture…';
+  if(s.cover>=100) return 'Ouvert'; if(s.cover<=0) return 'Fermé'; if(s.cover===50) return 'Mi-hauteur'; return 'Ouvert à '+s.cover+' %';}
+function lText(r){const s=S[r];return s.light?s.pct+' %':'Éteinte';}
+const stop='event.stopPropagation();';
+function title(r,extra){return `<div class="wtitle" onclick="openApp('${r}')">${NAMES[r]}<span class="tr">${extra||''}<button class="open" title="Ouvrir l\x27app">${ICON.open}</button></span></div>`;}
+
+function lightTile(r,mode){const s=S[r];
+  if(mode==='slider'){
+    return `<div class="t slider${s.light?' on':''}"><div class="fill" style="width:${s.light?s.pct:0}%"></div>
+      <div class="ic" onclick="${stop}toggle('${r}')">${ICON.bulb}</div><div class="tx"><div class="n">Lumière</div><div class="s">${lText(r)}</div></div>
+      <div class="zones" style="left:64px">${[20,40,60,80,100].map(v=>`<i onclick="bright('${r}',${v})" title="${v} %"></i>`).join('')}</div></div>`;}
+  if(mode==='square'){
+    return `<div class="t col${s.light?' on':''}" onclick="toggle('${r}')"><div class="ic">${ICON.bulb}</div>
+      <div class="tx"><div class="n">Lumière</div><div class="s">${lText(r)}</div></div>
+      <div class="chip"><button onclick="${stop}step('${r}',-10)">−</button><button onclick="${stop}step('${r}',10)">+</button></div></div>`;}
+  return `<div class="t${s.light?' on':''}" onclick="toggle('${r}')"><div class="ic">${ICON.bulb}</div>
+    <div class="tx"><div class="n">Lumière</div><div class="s">${lText(r)}</div></div>
+    ${mode==='plain'?'':`<div class="chip"><button onclick="${stop}step('${r}',-10)">−</button><button onclick="${stop}step('${r}',10)">+</button></div>`}</div>`;}
+
+function coverTile(r,mode){const s=S[r];const open=s.cover>0;
+  if(mode==='slider'){
+    return `<div class="t slider${open?' on':''}" style="background:var(--fillSoft)"><div class="fillv" style="height:${100-s.cover}%"></div>
+      <div class="ic" onclick="${stop}coverToggle('${r}')">${ICON.blind}</div><div class="tx"><div class="n">Volet</div><div class="s" style="color:inherit;opacity:.8">${cText(r)}</div></div>
+      <div class="zones v" style="left:64px">${(r==='chambre'?[100,50,0]:[100,0]).map(v=>`<i onclick="cover('${r}',${v})" title="${v} %"></i>`).join('')}</div>
+      <span class="hint">haut · ${r==='chambre'?'milieu · ':''}bas</span></div>`;}
+  if(mode==='square'){
+    return `<div class="t col${open?' on':''}" onclick="coverToggle('${r}')"><div class="ic">${ICON.blind}</div>
+      <div class="tx"><div class="n">Volet</div><div class="s">${cText(r)}</div></div>
+      <div class="chip"><button onclick="${stop}cover('${r}',100)">▲</button><button onclick="${stop}cover('${r}',50)">½</button><button onclick="${stop}cover('${r}',0)">▼</button></div></div>`;}
+  return `<div class="t${open?' on':''}" onclick="coverToggle('${r}')"><div class="ic">${ICON.blind}</div>
+    <div class="tx"><div class="n">Volet</div><div class="s">${cText(r)}</div></div>
+    ${mode==='plain'?'':`<div class="chip"><button onclick="${stop}cover('${r}',100)">▲</button><button onclick="${stop}cover('${r}',0)">▼</button></div>`}</div>`;}
+
+function chambre(){const r='chambre',s=S[r];
+  switch('H1'){
+    case 'H1': return `<div class="w">${title(r)}<div class="tiles" style="grid-template-rows:1fr 1fr">${lightTile(r)}${coverTile(r)}</div></div>`;
+    case 'H2': return `<div class="w">${title(r)}<div class="tiles" style="grid-template-rows:1fr 1fr">${lightTile(r,'slider')}${coverTile(r,'slider')}</div></div>`;
+    case 'H3': return `<div class="w">${title(r)}<div class="tiles" style="grid-template-columns:1fr 1fr">${lightTile(r,'square')}${coverTile(r,'square')}</div></div>`;
+    case 'H4': return `<div class="w">${title(r)}<div class="tiles" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr">
+      ${lightTile(r,'plain')}
+      <div class="t${s.light&&s.pct===70?' on':''}" onclick="defaut('${r}')"><div class="ic">${ICON.sun}</div><div class="tx"><div class="n">Défaut</div><div class="s">70 % · 2700 K</div></div></div>
+      ${coverTile(r,'plain')}
+      <div class="t${s.cover===50&&s.target===null?' on':''}" onclick="cover('${r}',50)"><div class="ic">${ICON.blind}</div><div class="tx"><div class="n">Mi-hauteur</div><div class="s">Volet à 50 %</div></div></div>
+    </div></div>`;
+  }}
+function salon(){const r='salon';
+  switch('SA'){
+    case 'SA': return `<div class="w">${title(r,'21,4 °C · 💧 52 %')}<div class="tiles" style="grid-template-rows:1fr 1fr">${lightTile(r)}${coverTile(r)}</div></div>`;
+    case 'SB': return `<div class="w">${title(r)}<div class="tiles" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr"><div style="grid-column:span 2;display:grid">${lightTile(r)}</div>${coverTile(r,'plain')}
+      <div class="t" onclick="openApp('salon')"><div class="ic">${ICON.temp}</div><div class="tx"><div class="n">21,4 °C</div><div class="s">💧 52 %</div></div></div></div></div>`;
+    case 'SC': return `<div class="w">${title(r,'21,4 °C')}<div class="tiles" style="grid-template-rows:1fr 1fr">${lightTile(r,'plain')}${coverTile(r,'plain')}</div></div>`;
+    case 'SD': return `<div class="w" style="padding:8px"><div class="tiles" style="grid-template-columns:1fr 1fr">${lightTile(r,'plain').replace('>Lumière<','>Salon<').replace('>'+lText(r)+'<','>'+lText(r)+' · 21°<')}${coverTile(r,'plain')}</div></div>`;
+  }}
+function cuisine(){const r='cuisine',s=S[r];
+  const tile=(chips)=>`<div class="t kt${s.cover>0?' on':''}" onclick="coverToggle('cuisine')"><div class="ic">${ICON.blind}</div><div class="tx"><div class="n">Volet</div><div class="s">${cText(r)}</div></div>${chips}</div>`;
+  switch(variant){
+    case 'KA': return `<div class="w" style="padding:6px 10px 8px;gap:4px">${title(r)}<div class="tiles">${tile(`<div class="chip" style="gap:4px"><button onclick="${stop}cover('cuisine',100)">▲</button><button onclick="${stop}cover('cuisine','stop')">■</button><button onclick="${stop}cover('cuisine',0)">▼</button></div>`)}</div></div>`;
+    case 'KB': return `<div class="w" style="padding:8px"><div class="tiles">${tile('')}</div></div>`;
+    case 'KC': return `<div class="w" style="padding:8px"><div class="tiles">${tile(`<div class="chip" style="gap:4px"><button style="width:30px;height:30px" onclick="${stop}cover('cuisine',100)">▲</button><button style="width:30px;height:30px" onclick="${stop}cover('cuisine',0)">▼</button></div>`).replace('<div class="n">Cuisine</div>','').replace('class="ic"','class="ic" style="width:32px;height:32px"')}</div></div>`;
+  }}
+
+function render(){
+  document.getElementById('opts').innerHTML=VARIANTS.map(v=>`<button class="opt${variant===v.id?' sel':''}" onclick="variant='${v.id}';render()"><b>${v.id} · ${v.t}</b>${v.d}</button>`).join('');
+  document.querySelectorAll('[data-pal]').forEach(b=>b.classList.toggle('sel',b.dataset.pal===palette));
+  const sc=document.getElementById('screen');sc.className='screen '+palette;
+  const sv=VARIANTS.find(v=>v.id===variant);
+  let html=`<div class="cell" style="grid-column:span 4;grid-row:span 2">${chambre()}</div>
+    <div class="cell" style="grid-column:span 4;grid-row:span 2">${salon()}</div>
+    <div class="cell" style="grid-column:span ${sv.w};grid-row:span ${sv.h}">${cuisine()}</div>`;
+  document.getElementById('grid').innerHTML=html;
+}
+function pal(p){palette=p;render();}
+function toggle(r){S[r].light=!S[r].light;log(`${NAMES[r]} : lumière ${S[r].light?'allumée ('+S[r].pct+' %)':'éteinte'}`);render();}
+function bright(r,v){S[r].light=true;S[r].pct=v;log(`${NAMES[r]} : luminosité ${v} %`);render();}
+function step(r,d){const s=S[r];s.pct=Math.max(10,Math.min(100,(s.light?s.pct:0)+d));s.light=true;log(`${NAMES[r]} : luminosité ${s.pct} %`);render();}
+function defaut(r){S[r].light=true;S[r].pct=70;log(`${NAMES[r]} : défaut 70 % · 2700 K`);render();}
+function cover(r,v){const s=S[r];clearInterval(s.timer);
+  if(v==='stop'){s.target=null;render();return;}
+  if(s.cover===v){s.target=null;render();return;}
+  s.target=v;log(`${NAMES[r]} : volet → ${v===100?'ouvrir':v===0?'fermer':'mi-hauteur'}`);
+  s.timer=setInterval(()=>{s.cover+=s.target>s.cover?2:-2;if(s.cover===s.target){clearInterval(s.timer);s.target=null;}render();},70);render();}
+function coverToggle(r){const s=S[r];if(s.target!==null){log(`${NAMES[r]} : volet arrêté à ${s.cover} %`);cover(r,'stop');}else cover(r,s.cover>0?0:100);}
+function openApp(r){log(`Appui sur « ${NAMES[r]} » → ouvrirait l'app sur l'onglet ${NAMES[r]}`);}
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toTimeString().slice(0,5);},10000);
+render();
+</script>
+</body>
+</html>

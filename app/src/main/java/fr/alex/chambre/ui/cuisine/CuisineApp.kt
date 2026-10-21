@@ -79,13 +79,8 @@ fun CuisineApp(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     val forecastDaily by vm.ha.forecastDaily.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val battery by vm.battery.state.collectAsStateWithLifecycle()
-    val recipes by vm.cuisine.recipes.collectAsStateWithLifecycle()
-    val today by vm.cuisine.today.collectAsStateWithLifecycle()
-    val error by vm.cuisine.error.collectAsStateWithLifecycle()
     val opened by vm.cuisine.opened.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
     // Cooking: the screen never sleeps while a recipe is open.
     LaunchedEffect(opened != null) { vm.presence.hold = opened != null }
@@ -94,16 +89,7 @@ fun CuisineApp(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     val weather = entities[Entities.WEATHER]
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize()) {
-            val recipe = opened
-            if (recipe != null) {
-                BackHandler { vm.cuisine.close() }
-                RecipeScreen(
-                    opened = recipe,
-                    onBack = vm.cuisine::close,
-                    onRetry = { vm.cuisine.open(recipe.slug) },
-                    onTimer = { seconds, label -> scope.launch { snackbar.showSnackbar(startSystemTimer(context, seconds, label)) } },
-                )
-            } else {
+            if (!CuisineRecipeOverlay(vm, snackbar)) {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     HeaderBar(
                         currentCondition = weather?.state?.takeUnless { it == "unavailable" || it == "unknown" },
@@ -114,17 +100,7 @@ fun CuisineApp(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
                         battery = battery,
                         onOpenSettings = onOpenSettings,
                     )
-                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        CoverPanel(entities[Entities.KITCHEN_COVER], online, vm.kitchenController, Modifier.width(236.dp))
-                        RecipesPanel(
-                            recipes = recipes,
-                            banner = todaysBanner(today, recipes),
-                            error = error,
-                            onOpen = vm.cuisine::open,
-                            onRetry = vm.cuisine::refresh,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                    CuisinePanels(vm, Modifier.weight(1f))
                 }
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(24.dp))
@@ -132,14 +108,56 @@ fun CuisineApp(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     }
 }
 
+/** The kitchen dashboard's body: the kitchen shutter beside the Mealie recipes (kitchen tablet, salon « Cuisine » tab). */
 @Composable
-private fun RecipesPanel(
+fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier) {
+    val entities by vm.ha.entities.collectAsStateWithLifecycle()
+    val conn by vm.ha.conn.collectAsStateWithLifecycle()
+    val recipes by vm.cuisine.recipes.collectAsStateWithLifecycle()
+    val today by vm.cuisine.today.collectAsStateWithLifecycle()
+    val error by vm.cuisine.error.collectAsStateWithLifecycle()
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        CoverPanel(entities[Entities.KITCHEN_COVER], conn == ConnState.CONNECTED, vm.kitchenController, Modifier.width(236.dp))
+        RecipesPanel(
+            recipes = recipes,
+            banner = todaysBanner(today, recipes),
+            error = error,
+            onOpen = vm.cuisine::open,
+            onRetry = vm.cuisine::refresh,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** The opened recipe, full screen; returns false when no recipe is open. */
+@Composable
+fun CuisineRecipeOverlay(vm: DashboardViewModel, snackbar: SnackbarHostState, stacked: Boolean = false): Boolean {
+    val opened by vm.cuisine.opened.collectAsStateWithLifecycle()
+    val recipe = opened ?: return false
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    BackHandler { vm.cuisine.close() }
+    RecipeScreen(
+        opened = recipe,
+        onBack = vm.cuisine::close,
+        onRetry = { vm.cuisine.open(recipe.slug) },
+        onTimer = { seconds, label -> scope.launch { snackbar.showSnackbar(startSystemTimer(context, seconds, label)) } },
+        stacked = stacked,
+    )
+    return true
+}
+
+@Composable
+internal fun RecipesPanel(
     recipes: List<RecipeSummary>,
     banner: TodayBanner?,
     error: String?,
     onOpen: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Phone: 2 columns, and plain rows instead of a lazy grid (the whole screen scrolls). */
+    columns: Int = 3,
+    lazy: Boolean = true,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var filter by remember { mutableStateOf<RecipeFilter>(RecipeFilter.All) }
@@ -157,8 +175,10 @@ private fun RecipesPanel(
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(start = 6.dp).weight(1f),
                 )
-                SearchBox(query, { query = it }, Modifier.width(300.dp))
+                if (columns >= 3) SearchBox(query, { query = it }, Modifier.width(300.dp))
             }
+            // Narrow phone column: the search box gets its own line.
+            if (columns < 3) SearchBox(query, { query = it }, Modifier.fillMaxWidth())
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filters) { f ->
                     FilterChip(
@@ -177,12 +197,20 @@ private fun RecipesPanel(
                 error != null && recipes.isEmpty() -> Message(error, onRetry)
                 recipes.isEmpty() -> Message("Chargement des recettes…", null)
                 shown.isEmpty() -> Message("Aucune recette ne correspond", null)
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                lazy -> LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(shown, key = { it.slug }) { r -> RecipeCard(r) { onOpen(r.slug) } }
+                }
+                else -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    shown.chunked(columns).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            row.forEach { r -> Box(Modifier.weight(1f)) { RecipeCard(r) { onOpen(r.slug) } } }
+                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
                 }
             }
         }

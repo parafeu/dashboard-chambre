@@ -8,6 +8,8 @@ import android.provider.Settings
 import android.util.Log
 import fr.alex.chambre.MainActivity
 import fr.alex.chambre.settings.SettingsStore
+import fr.alex.chambre.settings.deviceFeatures
+import fr.alex.chambre.settings.formFactorFor
 import fr.alex.chambre.settings.dataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +24,8 @@ class BootReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val enabled = SettingsStore(app.dataStore).settings.first().autoStart
+                val stored = SettingsStore(app.dataStore).settings.first()
+                val enabled = deviceFeatures(stored, formFactorFor(app.resources.configuration.smallestScreenWidthDp)).bootStart
                 when (bootStart(enabled, Build.VERSION.SDK_INT, Settings.canDrawOverlays(app))) {
                     BootStart.START -> app.startActivity(
                         Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
