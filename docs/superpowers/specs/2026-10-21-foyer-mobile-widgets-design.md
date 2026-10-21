@@ -70,6 +70,7 @@ The salon tablet's « Cuisine » tab shows the kitchen dashboard instead of `sal
 kitchen timers with 5 / 10 min buttons, the shopping-list count, the kitchen-tablet plug) are **not** carried over;
 `salon/CuisineScreen.kt` goes away. Announcements are not UI and are untouched: the salon tablet still announces the
 end of an HA kitchen timer.
+The rail summary under « Cuisine » is unchanged (« Volet … · minuteurs … »).
 
 ## Widgets
 
@@ -126,6 +127,5 @@ Behaviour:
 
 ## Left to the builder
 
-Exact phone breakpoint and panel heights; how widgets are implemented (Glance or RemoteViews) and refreshed; the
-wording of the Cuisine rail summary now that the timers are no longer shown in that tab; the default tab when the app opens without a widget
+Exact phone breakpoint and panel heights; how widgets are implemented (Glance or RemoteViews) and refreshed; the the default tab when the app opens without a widget
 (Salon unless opened from a widget); version number bump and README update.
