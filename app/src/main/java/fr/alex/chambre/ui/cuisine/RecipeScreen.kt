@@ -1,7 +1,10 @@
 package fr.alex.chambre.ui.cuisine
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,6 +108,7 @@ fun RecipeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, String) -> Unit, stacked: Boolean) {
     var servings by remember(recipe.slug) { mutableDoubleStateOf(recipe.baseServings) }
@@ -172,11 +176,14 @@ private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, Str
             Panel(second) {
                 PanelTitle("Étapes", if (recipe.steps.isEmpty()) "" else "Étape ${current + 1} sur ${recipe.steps.size}")
                 val list = rememberLazyListState()
-                if (!stacked) LaunchedEffect(current) { list.animateScrollToItem(current) }
+                // Stacked (phone): the whole screen scrolls, so the current step is brought into view instead.
+                val currentStep = remember { BringIntoViewRequester() }
+                LaunchedEffect(current) { if (stacked) currentStep.bringIntoView() else list.animateScrollToItem(current) }
                 ItemList(recipe.steps, lazy = !stacked, spacing = 6, modifier = if (stacked) Modifier else Modifier.weight(1f), state = list) { i, step ->
                     val on = i == current
                     Column(
                         Modifier.fillMaxWidth()
+                            .then(if (on) Modifier.bringIntoViewRequester(currentStep) else Modifier)
                             .clip(RoundedCornerShape(20.dp))
                             .background(if (on) CURRENT_STEP_BG else Color.Transparent)
                             .padding(if (on) 16.dp else 6.dp),
