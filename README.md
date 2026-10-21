@@ -122,11 +122,11 @@ portrait, et une **barre flottante** en bas pour passer de Salon à Cuisine ou C
 ## Widgets
 
 Trois widgets d'écran d'accueil (appui long sur l'écran d'accueil → Widgets → Foyer), au style Google Home,
-couleurs Ambre :
+couleurs du fond d'écran (Material You, Android 12+ ; Ambre sur les tablettes) :
 
 - **Chambre** (4×2) et **Salon** (4×2, avec température · humidité) : tuile Lumière (toucher = allumer / éteindre,
   − / + = luminosité de 10 en 10 %, une lumière éteinte s'allume à 10 %) et tuile Volet (toucher = ouvrir s'il est
-  fermé, fermer s'il est ouvert, arrêter s'il bouge ; ▲ / ▼).
+  fermé, fermer s'il est ouvert, arrêter s'il bouge ; ▲ ■ ▼).
 - **Cuisine** (4×1) : tuile Volet avec ▲ ■ ▼.
 - Le bouton ↗ en haut à droite (ou le titre) ouvre Foyer sur la pièce.
 

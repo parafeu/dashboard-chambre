@@ -76,3 +76,12 @@ class WidgetModelTest {
         assertEquals("", climateText(null, sensor("unavailable")))
     }
 }
+
+class CoverButtonsTest {
+    @Test
+    fun `every shutter widget has open, stop and close`() {
+        WidgetRoom.entries.forEach { room ->
+            assertEquals(listOf(CoverButton.OPEN, CoverButton.STOP, CoverButton.CLOSE), coverButtons(room))
+        }
+    }
+}

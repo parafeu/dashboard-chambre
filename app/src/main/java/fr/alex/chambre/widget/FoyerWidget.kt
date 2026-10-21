@@ -37,23 +37,12 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.color.ColorProvider
 import androidx.glance.unit.ColorProvider
 import fr.alex.chambre.MainActivity
 import fr.alex.chambre.R
 import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ui.phone.EXTRA_TAB
-
-// Ambre palette (ui/theme/Theme.kt), as in the validated widget mockup.
-private val BG = Color(0xFF19120C)
-private val TILE = Color(0xFF2F2620)
-private val TILE_ON = Color(0xFFFFB86B)
-private val ON_TILE = Color(0xFFF0DFD3)
-private val ON_TILE_ON = Color(0xFF3F2200)
-private val SUB = Color(0xFFCBB8A9)
-private val SUB_ON = Color(0xFF6A3B00)
-private val ICON_BG = Color(0xFF43372E)
-private val ICON_BG_ON = Color(0x59FFFFFF)
-private val CHIP_ON = Color(0x2E000000)
 
 /** One room's widget (H1 / SA / KA): title row with the open-app button, then a tile per device. */
 abstract class FoyerWidget(private val room: WidgetRoom) : GlanceAppWidget() {
@@ -62,7 +51,7 @@ abstract class FoyerWidget(private val room: WidgetRoom) : GlanceAppWidget() {
         val initial = WidgetSnapshots.recent(room) ?: widgetRepository(context).refresh(room).also { WidgetSnapshots.publish(room, it) }
         provideContent {
             val live by WidgetSnapshots.flow(room).collectAsState()
-            WidgetContent(context, room, live ?: initial)
+            WidgetContent(context, room, live ?: initial, widgetPalettes(context))
         }
     }
 }
@@ -104,31 +93,35 @@ private fun run(room: WidgetRoom, action: String): Action =
     actionRunCallback<WidgetActionCallback>(actionParametersOf(WidgetActionCallback.ROOM to room.name, WidgetActionCallback.ACTION to action))
 
 @Composable
-private fun WidgetContent(context: Context, room: WidgetRoom, snap: WidgetSnapshot) {
-    // HA out of reach: the last known states, dimmed.
-    fun c(color: Color) = ColorProvider(if (snap.stale) color.copy(alpha = color.alpha * 0.5f) else color)
-    Column(GlanceModifier.fillMaxSize().background(BG).cornerRadius(28.dp).padding(horizontal = 10.dp, vertical = 8.dp)) {
+private fun WidgetContent(context: Context, room: WidgetRoom, snap: WidgetSnapshot, palettes: Pair<WidgetPalette, WidgetPalette>) {
+    val (day, night) = palettes
+    // A colour role in the light / dark palette; HA out of reach: the last known states, dimmed.
+    fun c(role: (WidgetPalette) -> Color): ColorProvider {
+        fun dim(x: Color) = if (snap.stale) x.copy(alpha = x.alpha * 0.5f) else x
+        return ColorProvider(day = dim(role(day)), night = dim(role(night)))
+    }
+    Column(GlanceModifier.fillMaxSize().background(c { it.background }).cornerRadius(28.dp).padding(horizontal = 10.dp, vertical = 8.dp)) {
         Row(GlanceModifier.fillMaxWidth().padding(start = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 room.title,
                 GlanceModifier.defaultWeight().clickable(openApp(context, room)),
-                style = TextStyle(color = c(ON_TILE), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = c { it.onTile }, fontSize = 13.sp, fontWeight = FontWeight.Bold),
             )
             if (room == WidgetRoom.SALON) {
                 val climate = climateText(snap.states[Entities.SALON_TEMPERATURE], snap.states[Entities.SALON_HUMIDITY])
                 if (climate.isNotEmpty()) {
-                    Text(climate, style = TextStyle(color = c(SUB), fontSize = 13.sp))
+                    Text(climate, style = TextStyle(color = c { it.sub }, fontSize = 13.sp))
                     Spacer(GlanceModifier.width(8.dp))
                 }
             }
             Box(
-                GlanceModifier.size(28.dp).background(TILE).cornerRadius(14.dp).clickable(openApp(context, room)),
+                GlanceModifier.size(28.dp).background(c { it.tile }).cornerRadius(14.dp).clickable(openApp(context, room)),
                 contentAlignment = Alignment.Center,
-            ) { Image(ImageProvider(R.drawable.ic_w_open), "Ouvrir Foyer", GlanceModifier.size(15.dp), colorFilter = ColorFilter.tint(c(ON_TILE))) }
+            ) { Image(ImageProvider(R.drawable.ic_w_open), "Ouvrir Foyer", GlanceModifier.size(15.dp), colorFilter = ColorFilter.tint(c { it.onTile })) }
         }
         if (!snap.configured) {
             Box(GlanceModifier.fillMaxSize().clickable(openApp(context, room)), contentAlignment = Alignment.Center) {
-                Text("Ouvrir Foyer pour configurer", style = TextStyle(color = c(SUB), fontSize = 13.sp))
+                Text("Ouvrir Foyer pour configurer", style = TextStyle(color = c { it.sub }, fontSize = 13.sp))
             }
             return@Column
         }
@@ -143,10 +136,12 @@ private fun WidgetContent(context: Context, room: WidgetRoom, snap: WidgetSnapsh
             Spacer(GlanceModifier.height(8.dp))
         }
         val cover = snap.states[room.cover]
-        val coverButtons = buildList {
-            add(R.drawable.ic_w_up to run(room, WidgetActionCallback.OPEN))
-            if (room == WidgetRoom.CUISINE) add(R.drawable.ic_w_stop to run(room, WidgetActionCallback.STOP))
-            add(R.drawable.ic_w_down to run(room, WidgetActionCallback.CLOSE))
+        val coverButtons = coverButtons(room).map { b ->
+            when (b) {
+                CoverButton.OPEN -> R.drawable.ic_w_up to run(room, WidgetActionCallback.OPEN)
+                CoverButton.STOP -> R.drawable.ic_w_stop to run(room, WidgetActionCallback.STOP)
+                CoverButton.CLOSE -> R.drawable.ic_w_down to run(room, WidgetActionCallback.CLOSE)
+            }
         }
         Tile(
             on = coverIsOpen(cover), icon = R.drawable.ic_w_blinds, name = "Volet", status = coverText(cover), color = ::c,
@@ -163,31 +158,31 @@ private fun Tile(
     icon: Int,
     name: String,
     status: String,
-    color: (Color) -> ColorProvider,
+    color: ((WidgetPalette) -> Color) -> ColorProvider,
     onTap: Action,
     buttons: List<Pair<Int, Action>>,
     modifier: GlanceModifier,
     compact: Boolean = false,
 ) {
-    val fg = if (on) ON_TILE_ON else ON_TILE
+    val fg: (WidgetPalette) -> Color = { if (on) it.onTileOn else it.onTile }
     Row(
-        modifier.fillMaxWidth().background(color(if (on) TILE_ON else TILE)).cornerRadius(22.dp)
+        modifier.fillMaxWidth().background(color { if (on) it.tileOn else it.tile }).cornerRadius(22.dp)
             .padding(horizontal = if (compact) 12.dp else 14.dp).clickable(onTap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val iconSize = if (compact) 34.dp else 40.dp
-        Box(GlanceModifier.size(iconSize).background(if (on) ICON_BG_ON else ICON_BG).cornerRadius(iconSize / 2), contentAlignment = Alignment.Center) {
-            Image(ImageProvider(icon), null, GlanceModifier.size(22.dp), colorFilter = ColorFilter.tint(color(if (on) ON_TILE_ON else Color(0xFFFFDCBE))))
+        Box(GlanceModifier.size(iconSize).background(color { if (on) it.iconBgOn else it.iconBg }).cornerRadius(iconSize / 2), contentAlignment = Alignment.Center) {
+            Image(ImageProvider(icon), null, GlanceModifier.size(22.dp), colorFilter = ColorFilter.tint(color { if (on) it.onTileOn else it.icon }))
         }
         Spacer(GlanceModifier.width(12.dp))
         Column(GlanceModifier.defaultWeight()) {
             Text(name, style = TextStyle(color = color(fg), fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-            Text(status, style = TextStyle(color = color(if (on) SUB_ON else SUB), fontSize = 12.sp), maxLines = 1)
+            Text(status, style = TextStyle(color = color { if (on) it.subOn else it.sub }, fontSize = 12.sp), maxLines = 1)
         }
         val size = if (compact) 32.dp else 36.dp
         buttons.forEachIndexed { i, (res, action) ->
             if (i > 0) Spacer(GlanceModifier.width(if (compact) 4.dp else 6.dp))
-            Box(GlanceModifier.size(size).background(if (on) CHIP_ON else ICON_BG).cornerRadius(size / 2).clickable(action), contentAlignment = Alignment.Center) {
+            Box(GlanceModifier.size(size).background(color { if (on) it.chipOn else it.iconBg }).cornerRadius(size / 2).clickable(action), contentAlignment = Alignment.Center) {
                 Image(ImageProvider(res), null, GlanceModifier.size(18.dp), colorFilter = ColorFilter.tint(color(fg)))
             }
         }
