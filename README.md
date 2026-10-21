@@ -1,4 +1,4 @@
-# Dashboard Chambre
+# Foyer
 
 App Android native (Jetpack Compose, Material 3) qui remplace Fully Kiosk + Lovelace sur la
 Galaxy Tab S2 (LineageOS, Android 9 minimum) de la chambre : contrôle lumière / volet / scènes,

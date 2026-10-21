@@ -37,7 +37,8 @@ android {
             ndk { abiFilters += listOf("armeabi-v7a", "x86_64") }
         }
         release {
-            ndk { abiFilters += "armeabi-v7a" }
+            // armeabi-v7a = the tablets, arm64-v8a = 64-bit-only phones (Pixel 9)
+            ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
