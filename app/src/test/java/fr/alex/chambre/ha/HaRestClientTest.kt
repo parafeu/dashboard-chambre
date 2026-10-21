@@ -55,6 +55,11 @@ class HaRestClientTest {
     }
 
     @Test(expected = IOException::class)
+    fun `malformed url is an io error`(): Unit = runBlocking {
+        HaRestClient("http://my ha", "t", OkHttpClient()).state("light.x")
+    }
+
+    @Test(expected = IOException::class)
     fun `server error throws`(): Unit = runBlocking {
         server.enqueue(MockResponse().setResponseCode(500))
         rest.call("light", "toggle", buildJsonObject { })

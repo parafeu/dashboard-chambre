@@ -17,10 +17,11 @@ private fun EntityState?.known(): EntityState? = this?.takeUnless { it.isUnavail
 
 fun lightIsOn(light: EntityState?): Boolean = light.known()?.state == "on"
 
-/** « 40 % », « Éteinte », or « – » when Home Assistant gave nothing. */
+/** « 40 % », « Allumée » (no brightness reported), « Éteinte », or « – » when Home Assistant gave nothing. */
 fun lightText(light: EntityState?): String {
     val l = light.known() ?: return "–"
-    return if (l.state == "on") "${l.brightnessPct ?: 0} %" else "Éteinte"
+    if (l.state != "on") return "Éteinte"
+    return l.brightnessPct?.let { "$it %" } ?: "Allumée"
 }
 
 /** The brightness « − » / « + » ask for: ±[deltaPct] from now, an off light comes on at the minimum, 10–100 %. */

@@ -23,6 +23,7 @@ class WidgetModelTest {
     fun `light text`() {
         assertEquals("40 %", lightText(light("on", 102)))
         assertEquals("Éteinte", lightText(light("off")))
+        assertEquals("Allumée", lightText(light("on")))
         assertEquals("–", lightText(null))
         assertEquals("–", lightText(light("unavailable")))
         assertTrue(lightIsOn(light("on", 10)))

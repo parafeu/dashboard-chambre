@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -20,7 +21,7 @@ class HaRestClient(private val baseUrl: String, private val token: String, priva
 
     /** One entity's state, or null when HA doesn't know it. */
     suspend fun state(entityId: String): EntityState? = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url("$baseUrl/api/states/$entityId").auth().get().build()
+        val request = Request.Builder().url(endpoint("/api/states/$entityId")).auth().get().build()
         client.newCall(request).execute().use { r ->
             if (r.code == 404) return@use null
             if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
@@ -39,7 +40,7 @@ class HaRestClient(private val baseUrl: String, private val token: String, priva
 
     suspend fun call(domain: String, service: String, data: JsonObject): Boolean = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("$baseUrl/api/services/$domain/$service")
+            .url(endpoint("/api/services/$domain/$service"))
             .auth()
             .post(data.toString().toRequestBody(JSON))
             .build()
@@ -48,6 +49,10 @@ class HaRestClient(private val baseUrl: String, private val token: String, priva
             true
         }
     }
+
+    /** A malformed URL typed in the settings is reported like an unreachable server. */
+    private fun endpoint(path: String): okhttp3.HttpUrl =
+        "$baseUrl$path".toHttpUrlOrNull() ?: throw IOException("Adresse Home Assistant invalide")
 
     private fun Request.Builder.auth() = header("Authorization", "Bearer ${token.trim()}")
 
