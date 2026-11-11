@@ -42,6 +42,8 @@ class CameraMotionSource(
 ) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private var provider: ProcessCameraProvider? = null
+    /** Our own use case: the provider is shared by the process (activity and [CameraService] cameras). */
+    private var bound: ImageAnalysis? = null
     private var analyzer: OpenCvMotionAnalyzer? = null
     private val decider = MotionDecider(minArea, SystemClock::elapsedRealtime)
     private var lastFrameAt = 0L
@@ -94,7 +96,7 @@ class CameraMotionSource(
         val a = api ?: return
         val p = provider
         if (legacyUsed) legacy.close()
-        p?.unbindAll()
+        unbindOwn()
         blankRequested = true // a new source: relearn the background
         Log.i(TAG, "Motion detection with $a")
         when (a) {
@@ -119,6 +121,10 @@ class CameraMotionSource(
         legacy.open() // no-op when already open
     }
 
+    private fun unbindOwn() {
+        bound?.let { provider?.unbind(it) }
+        bound = null
+    }
     private fun bind(p: ProcessCameraProvider) {
         val builder = ImageAnalysis.Builder()
             .setResolutionSelector(
@@ -135,6 +141,7 @@ class CameraMotionSource(
         val analysis = builder.build()
         analysis.setAnalyzer(executor) { image -> image.use { analyze(it) } }
         p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, analysis)
+        bound = analysis
     }
 
     private fun analyze(image: androidx.camera.core.ImageProxy) {
@@ -172,7 +179,7 @@ class CameraMotionSource(
     fun stop() {
         lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
         if (legacyUsed) legacy.shutdown()
-        provider?.unbindAll()
+        unbindOwn()
         executor.shutdown()
     }
 

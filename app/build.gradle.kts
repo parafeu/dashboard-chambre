@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
+    implementation(libs.androidx.lifecycle.service)
     implementation(libs.datastore.preferences)
     implementation(libs.opencv)
     implementation(libs.glance.appwidget)

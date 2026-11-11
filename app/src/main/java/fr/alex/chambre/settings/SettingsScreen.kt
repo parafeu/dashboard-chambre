@@ -130,6 +130,7 @@ fun SettingsScreen(
     var autoStart by remember(initial) { mutableStateOf(initial.autoStart) }
     var timerRing by remember(initial) { mutableStateOf(initial.timerRing) }
     var timersList by remember(initial) { mutableStateOf(initial.timersList) }
+    var screenOff by remember(initial) { mutableStateOf(initial.screenOff) }
     val context = LocalContext.current
     var canOverlay by remember { mutableStateOf(AndroidSettings.canDrawOverlays(context)) }
     // Coming back from Android's permission screen: check again.
@@ -184,7 +185,7 @@ fun SettingsScreen(
         Button(onClick = {
             onSave(
                 Settings(
-                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart, timerRing = timerRing, timersList = timersList,
+                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart, timerRing = timerRing, timersList = timersList, screenOff = screenOff,
                     mealieUrl = mealieUrl, mealieToken = mealieToken,
                     room = room, workCalendar = workCal, alertsCalendar = alertsCal,
                 ),
@@ -336,6 +337,17 @@ fun SettingsScreen(
                             "Camera1 : pour les tablettes dont l'aperçu reste indisponible avec CameraX.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Éteindre vraiment l'écran", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Pour les écrans LCD, qui restent légèrement éclairés en veille. Android éteint l'écran " +
+                                        "selon sa propre mise en veille (Paramètres Android → Affichage), un mouvement le rallume.",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(checked = screenOff, onCheckedChange = { screenOff = it })
+                        }
                     }
                     Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         saveButtons()

@@ -25,7 +25,10 @@ import fr.alex.chambre.ha.HaConfig
 import fr.alex.chambre.ha.TodoList
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ha.HaRepository
+import fr.alex.chambre.presence.MotionBus
+import fr.alex.chambre.presence.Presence
 import fr.alex.chambre.presence.PresenceController
+import fr.alex.chambre.presence.Waker
 import fr.alex.chambre.settings.Settings
 import fr.alex.chambre.settings.SettingsStore
 import kotlinx.coroutines.Dispatchers
@@ -115,6 +118,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             ringingShown.map { it.isNotEmpty() }.distinctUntilChanged().collect { ringing ->
                 presence.alarm = ringing
+                if (ringing) Waker.wakeIfOff(getApplication()) // screen really off, or turned off with the power button
                 if (ringing) alarmPlayer.start() else alarmPlayer.stop()
             }
         }
@@ -191,6 +195,16 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Annotated camera frames, published only while the settings screen is open. */
     val cameraPreview = MutableStateFlow<Bitmap?>(null)
+
+    init {
+        // « Éteindre vraiment l'écran »: CameraService's motions wake the presence, and an awake presence (motion,
+        // announcement, timer) turns the screen back on.
+        viewModelScope.launch { MotionBus.motion.collect { presence.onMotion() } }
+        viewModelScope.launch {
+            presence.state.collect { if (it == Presence.AWAKE && settings.value?.screenOff == true) Waker.wakeIfOff(getApplication()) }
+        }
+        viewModelScope.launch { settingsOpen.collect { MotionBus.previewWanted.value = it } }
+    }
 
     fun saveSettings(s: Settings) {
         viewModelScope.launch {

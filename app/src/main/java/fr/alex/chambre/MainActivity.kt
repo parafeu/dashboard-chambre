@@ -34,6 +34,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import fr.alex.chambre.ha.ConnState
 import fr.alex.chambre.presence.CameraMotionSource
+import fr.alex.chambre.presence.CameraService
+import fr.alex.chambre.presence.MotionBus
+import fr.alex.chambre.presence.ScreenFlags
+import fr.alex.chambre.presence.screenFlags
 import fr.alex.chambre.ui.cuisine.CuisineApp
 import fr.alex.chambre.presence.Presence
 import fr.alex.chambre.presence.TouchGate
@@ -54,6 +58,7 @@ import fr.alex.chambre.ui.DashboardViewModel
 import fr.alex.chambre.ui.timers.RingingOverlay
 import fr.alex.chambre.ui.SleepOverlay
 import fr.alex.chambre.ui.theme.ChambreTheme
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -65,12 +70,13 @@ class MainActivity : ComponentActivity() {
     /** Phone: the room a widget asked for (see EXTRA_TAB). */
     private val startTab = mutableStateOf(TabRequest.from(null))
     private var camera: CameraMotionSource? = null
+    private var followingCameraMode = false
     private val touchGate by lazy {
         TouchGate(isAsleep = { vm.presence.state.value == Presence.ASLEEP }, onTouch = { vm.presence.onTouch() })
     }
 
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startCamera()
+        if (granted) followCameraMode()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,12 +102,15 @@ class MainActivity : ComponentActivity() {
         } else {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             hideSystemBars()
+            // After a motion turned the screen back on (« Éteindre vraiment l'écran »): straight to the dashboard.
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() = Unit
             })
 
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                startCamera()
+                followCameraMode()
             } else {
                 cameraPermission.launch(Manifest.permission.CAMERA)
             }
@@ -110,11 +119,16 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var previous: Presence? = null
-                vm.presence.state.collect {
-                    applyBrightness(it)
-                    if (previous != null && previous != it) camera?.onScreenTransition()
-                    previous = it
-                }
+                combine(vm.presence.state, vm.settings.map { it?.screenOff == true }) { p, off -> p to off }
+                    .distinctUntilChanged()
+                    .collect { (p, off) ->
+                        applyScreen(screenFlags(p, off))
+                        if (previous != null && previous != p) {
+                            camera?.onScreenTransition()
+                            MotionBus.screenTransitions.tryEmit(Unit)
+                        }
+                        previous = p
+                    }
             }
         }
 
@@ -142,9 +156,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun applyBrightness(p: Presence) {
+    /** The camera lives in the activity, or in [CameraService] when the screen really turns off while asleep. */
+    private fun followCameraMode() {
+        if (followingCameraMode) return
+        followingCameraMode = true
+        lifecycleScope.launch {
+            vm.settings.filterNotNull().map { it.screenOff }.distinctUntilChanged().collect { off ->
+                if (off) {
+                    camera?.stop()
+                    camera = null
+                    CameraService.start(this@MainActivity)
+                } else {
+                    CameraService.stop(this@MainActivity)
+                    startCamera()
+                }
+            }
+        }
+        lifecycleScope.launch { MotionBus.preview.collect { if (camera == null) vm.cameraPreview.value = it } }
+    }
+
+    private fun applyScreen(f: ScreenFlags) {
+        if (f.keepOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.attributes = window.attributes.apply {
-            screenBrightness = if (p == Presence.ASLEEP) WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            // The lowest backlight (0 = 1/255 on the Lenovo's LCD); « Éteindre vraiment l'écran » goes further.
+            screenBrightness = if (f.dark) WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         }
     }
 
