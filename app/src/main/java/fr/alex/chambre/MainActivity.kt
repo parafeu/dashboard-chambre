@@ -144,7 +144,7 @@ class MainActivity : ComponentActivity() {
 
     private fun applyBrightness(p: Presence) {
         window.attributes = window.attributes.apply {
-            screenBrightness = if (p == Presence.ASLEEP) 0.01f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            screenBrightness = if (p == Presence.ASLEEP) WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         }
     }
 
