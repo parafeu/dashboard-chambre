@@ -53,6 +53,14 @@ interface HaApi {
         entityId: String,
         data: JsonObject = JsonObject(emptyMap()),
     ): Boolean
+
+    /** Like [call], but a failure or HA being offline is not reported on [errors]. */
+    suspend fun callQuietly(
+        domain: String,
+        service: String,
+        entityId: String,
+        data: JsonObject = JsonObject(emptyMap()),
+    ): Boolean = call(domain, service, entityId, data)
 }
 
 /**
@@ -192,6 +200,11 @@ class HaRepository(
 
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
         val result = request(reportErrors = true) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
+        return result?.success == true
+    }
+
+    override suspend fun callQuietly(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
+        val result = request(reportErrors = false) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
         return result?.success == true
     }
 
