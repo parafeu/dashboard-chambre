@@ -69,6 +69,9 @@ import fr.alex.chambre.mealie.todaysBanner
 import fr.alex.chambre.ui.CoverPanel
 import fr.alex.chambre.ui.DashboardViewModel
 import fr.alex.chambre.ui.HeaderBar
+import fr.alex.chambre.ui.timers.TimersPanel
+import fr.alex.chambre.mealie.timerLabel
+import fr.alex.chambre.settings.FormFactor
 import kotlinx.coroutines.launch
 
 /** The kitchen tablet: header, kitchen shutter and the Mealie recipes; a recipe opens full screen. */
@@ -108,16 +111,20 @@ fun CuisineApp(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     }
 }
 
-/** The kitchen dashboard's body: the kitchen shutter beside the Mealie recipes (kitchen tablet, salon « Cuisine » tab). */
+/**
+ * The kitchen dashboard's body: shutter, shared timers and Mealie recipes (kitchen tablet; salon « Cuisine » tab with
+ * [narrow], beside the room rail).
+ */
 @Composable
-fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier) {
+fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier, narrow: Boolean = false) {
     val entities by vm.ha.entities.collectAsStateWithLifecycle()
     val conn by vm.ha.conn.collectAsStateWithLifecycle()
     val recipes by vm.cuisine.recipes.collectAsStateWithLifecycle()
     val today by vm.cuisine.today.collectAsStateWithLifecycle()
     val error by vm.cuisine.error.collectAsStateWithLifecycle()
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        CoverPanel(entities[Entities.KITCHEN_COVER], conn == ConnState.CONNECTED, vm.kitchenController, Modifier.width(236.dp))
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (narrow) 16.dp else 20.dp)) {
+        CoverPanel(entities[Entities.KITCHEN_COVER], conn == ConnState.CONNECTED, vm.kitchenController, Modifier.width(if (narrow) 170.dp else 200.dp))
+        TimersPanel(vm, Modifier.width(if (narrow) 290.dp else 330.dp))
         RecipesPanel(
             recipes = recipes,
             banner = todaysBanner(today, recipes),
@@ -125,6 +132,8 @@ fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier) {
             onOpen = vm.cuisine::open,
             onRetry = vm.cuisine::refresh,
             modifier = Modifier.weight(1f),
+            columns = if (narrow) 1 else 2,
+            inlineSearch = !narrow,
         )
     }
 }
@@ -141,7 +150,20 @@ fun CuisineRecipeOverlay(vm: DashboardViewModel, snackbar: SnackbarHostState, st
         opened = recipe,
         onBack = vm.cuisine::close,
         onRetry = { vm.cuisine.open(recipe.slug) },
-        onTimer = { seconds, label -> scope.launch { snackbar.showSnackbar(startSystemTimer(context, seconds, label)) } },
+        onTimer = { seconds, name, origin ->
+            scope.launch {
+                val message = if (vm.formFactor == FormFactor.PHONE) {
+                    startSystemTimer(context, seconds, name) // the phone keeps the Clock app
+                } else if (vm.timers.start(seconds, name, origin)) {
+                    "Minuterie de ${timerLabel(seconds)} lancée"
+                } else if (!vm.timers.online.value) {
+                    "Home Assistant est hors ligne"
+                } else {
+                    null // HA refused: its error is already shown
+                }
+                if (message != null) snackbar.showSnackbar(message)
+            }
+        },
         stacked = stacked,
     )
     return true
@@ -157,6 +179,8 @@ internal fun RecipesPanel(
     modifier: Modifier = Modifier,
     /** Phone: 2 columns, and plain rows instead of a lazy grid (the whole screen scrolls). */
     columns: Int = 3,
+    /** Search box beside the title (wall tablets) rather than full width below it (phone). */
+    inlineSearch: Boolean = columns >= 3,
     lazy: Boolean = true,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -175,10 +199,10 @@ internal fun RecipesPanel(
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(start = 6.dp).weight(1f),
                 )
-                if (columns >= 3) SearchBox(query, { query = it }, Modifier.width(300.dp))
+                if (inlineSearch) SearchBox(query, { query = it }, Modifier.width(if (columns >= 3) 300.dp else 260.dp))
             }
             // Narrow phone column: the search box gets its own line.
-            if (columns < 3) SearchBox(query, { query = it }, Modifier.fillMaxWidth())
+            if (!inlineSearch) SearchBox(query, { query = it }, Modifier.fillMaxWidth())
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filters) { f ->
                     FilterChip(

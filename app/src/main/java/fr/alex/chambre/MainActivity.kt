@@ -51,6 +51,7 @@ import fr.alex.chambre.ui.DashboardScreen
 import fr.alex.chambre.ui.salon.SalonApp
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ui.DashboardViewModel
+import fr.alex.chambre.ui.timers.RingingOverlay
 import fr.alex.chambre.ui.SleepOverlay
 import fr.alex.chambre.ui.theme.ChambreTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -241,5 +242,6 @@ private fun App(vm: DashboardViewModel, phone: Boolean, startTab: TabRequest) {
             }
         }
         SleepOverlay(asleep = presence == Presence.ASLEEP)
+        RingingOverlay(vm)
     }
 }

@@ -166,7 +166,7 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
                                 colors = false, compact = true, title = "Lumières",
                             )
                         }
-                        SalonTab.CUISINE -> CuisinePanels(vm, Modifier.weight(1f))
+                        SalonTab.CUISINE -> CuisinePanels(vm, Modifier.weight(1f), narrow = true)
                         SalonTab.CHAMBRE -> ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f), narrow = true)
                     }
                 }
