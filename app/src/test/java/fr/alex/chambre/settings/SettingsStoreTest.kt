@@ -49,6 +49,14 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun timers_list_defaults_to_minuteries_foyer_and_round_trips() = runBlocking {
+        val s = store()
+        assertEquals("todo.minuteries_foyer", s.settings.first().timersList)
+        s.save(Settings(timersList = " todo.cuisine "))
+        assertEquals("todo.cuisine", s.settings.first().timersList)
+    }
+
+    @Test
     fun trims_url_and_token() = runBlocking { // RF5
         val s = store()
         s.save(Settings(url = " http://ha:8123/ \n", token = "  tok \n"))

@@ -20,6 +20,19 @@ import java.time.OffsetDateTime
 /** One item of a Home Assistant to-do list (`todo/item/subscribe`). */
 data class TodoItem(val uid: String, val summary: String, val description: String?)
 
+/** A Home Assistant to-do list entity, for the settings picker. */
+data class TodoList(val entityId: String, val name: String)
+
+/** The `todo.*` entities of a `get_states` result, by name. */
+fun todoListsFrom(states: JsonElement?): List<TodoList> =
+    (states as? JsonArray).orEmpty().mapNotNull { el ->
+        val o = el as? JsonObject ?: return@mapNotNull null
+        val id = (o["entity_id"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return@mapNotNull null
+        if (!id.startsWith("todo.")) return@mapNotNull null
+        val name = ((o["attributes"] as? JsonObject)?.get("friendly_name") as? JsonPrimitive)?.takeIf { it.isString }?.content
+        TodoList(id, name ?: id)
+    }.sortedBy { it.name.lowercase() }
+
 sealed interface Incoming {
     data object AuthRequired : Incoming
     data object AuthOk : Incoming
@@ -126,6 +139,11 @@ object HaProtocol {
         put("service", service)
         putJsonObject("target") { put("entity_id", entityId) }
         put("service_data", data)
+    }.toString()
+
+    fun getStates(id: Int): String = buildJsonObject {
+        put("id", id)
+        put("type", "get_states")
     }.toString()
 
     fun subscribeTodoItems(id: Int, entityId: String): String = buildJsonObject {

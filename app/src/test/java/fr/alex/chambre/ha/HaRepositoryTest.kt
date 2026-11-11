@@ -227,6 +227,14 @@ class HaRepositoryTest {
     private fun timersRepo() = HaRepository(scope, client, flowOf(HaConfig(server.url("/").toString().trimEnd('/'), "secret", timers = true)), listOf(10))
 
     @Test
+    fun subscribes_to_the_chosen_timer_list() = runBlocking {
+        val fake = FakeHa().also(::enqueue)
+        HaRepository(scope, client, flowOf(HaConfig(server.url("/").toString().trimEnd('/'), "secret", timers = true, timersList = "todo.cuisine")), listOf(10))
+        fake.handshake()
+        assertEquals("todo.cuisine", fake.next()["entity_id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun subscribes_to_timer_list_when_enabled() = runBlocking {
         val fake = FakeHa().also(::enqueue)
         timersRepo()

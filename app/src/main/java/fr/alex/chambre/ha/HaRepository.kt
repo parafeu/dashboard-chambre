@@ -27,6 +27,8 @@ data class HaConfig(
     val entities: List<String> = Entities.ALL,
     /** Also subscribe to the shared timers list [Entities.TIMERS_LIST] (wall tablets). */
     val timers: Boolean = false,
+    /** The to-do list holding the shared timers (chosen in the settings). */
+    val timersList: String = Entities.TIMERS_LIST,
 )
 
 private val NO_TIMER_ITEMS: StateFlow<List<TodoItem>?> = MutableStateFlow(null)
@@ -57,6 +59,9 @@ interface HaApi {
         entityId: String,
         data: JsonObject = JsonObject(emptyMap()),
     ): Boolean = call(domain, service, entityId, data)
+
+    /** The to-do lists in Home Assistant (settings picker); null when HA cannot be reached. */
+    suspend fun todoLists(): List<TodoList>? = null
 }
 
 /**
@@ -145,7 +150,7 @@ class HaRepository(
                         c.send(HaProtocol.subscribeForecast(dailyId, Entities.WEATHER, "daily"))
                         if (cfg.timers) {
                             timersId = c.nextId()
-                            c.send(HaProtocol.subscribeTodoItems(timersId, Entities.TIMERS_LIST))
+                            c.send(HaProtocol.subscribeTodoItems(timersId, cfg.timersList))
                         }
                         current = c
                         _conn.value = ConnState.CONNECTED
@@ -189,6 +194,11 @@ class HaRepository(
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
         val result = request(reportErrors = true) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
         return result?.success == true
+    }
+
+    override suspend fun todoLists(): List<TodoList>? {
+        val result = request(reportErrors = false) { id -> HaProtocol.getStates(id) } ?: return null
+        return if (result.success) todoListsFrom(result.result) else null
     }
 
     override suspend fun callQuietly(domain: String, service: String, entityId: String, data: JsonObject): Boolean {

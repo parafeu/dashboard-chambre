@@ -103,7 +103,8 @@ Réglages → Pièce : **Cuisine**, puis l'**adresse Mealie** et une **clé API 
   pendant une recette.
 - **Minuteries partagées** (panneau entre Volet et Recettes) : plusieurs à la fois, « + Nouvelle minuterie » pour
   une durée libre, « +1 min », ×. Elles sont stockées dans la liste de tâches Home Assistant `todo.minuteries_foyer`
-  (intégration « Local To-do », à créer une fois) et visibles sur toutes les tablettes. À la fin, chaque tablette
+  (intégration « Local To-do », à créer une fois ; Réglages → « Liste des minuteries » pour en choisir une autre,
+  la même sur toutes les tablettes) et visibles sur toutes les tablettes. À la fin, chaque tablette
   dont « Sonner pour les minuteries » est activé (Réglages, toutes les pièces) sonne avec l'alarme Android et affiche
   « Arrêter » ; arrêter sur une tablette l'arrête partout, même hors ligne (appliqué au retour de la connexion).
 - Les ingrédients « non analysés » dans Mealie s'affichent tels quels : utiliser « Analyser les ingrédients » dans

@@ -233,6 +233,20 @@ class TimerControllerTest {
     }
 
     @Test
+    fun calls_use_the_chosen_list() = runTest {
+        ha.timerItems.value = listOf(item("a", -5), item("b", 600))
+        val c = TimerController(backgroundScope, ha, cache, room = { Room.CUISINE }, clock = { clock }, list = { "todo.cuisine" })
+        runCurrent()
+        c.start(60, "x", "y")
+        c.addMinute("b")
+        c.delete("b")
+        c.stop("a")
+        runCurrent()
+        assertEquals(listOf("todo.cuisine"), ha.calls.map { it.entityId }.distinct())
+        assertEquals(4, ha.calls.size)
+    }
+
+    @Test
     fun failed_stop_is_retried() = runTest {
         ha.timerItems.value = listOf(item("a", -5))
         ha.answer = false

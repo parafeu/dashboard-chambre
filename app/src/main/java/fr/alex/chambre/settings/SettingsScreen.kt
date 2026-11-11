@@ -12,6 +12,7 @@ import android.os.Build
 import android.net.Uri
 import android.content.Intent
 import fr.alex.chambre.announce.DeviceCalendar
+import fr.alex.chambre.ha.TodoList
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -114,6 +115,8 @@ fun SettingsScreen(
     calendarError: String? = null,
     onTestVoice: () -> Unit = {},
     calendars: List<DeviceCalendar>? = emptyList(),
+    /** Home Assistant to-do lists for « Liste des minuteries »; null when HA cannot be reached. */
+    todoLists: List<TodoList>? = emptyList(),
     onAllowCalendars: () -> Unit = {},
     mealieError: String? = null,
     /** Phone: only the Home Assistant connection and Mealie. */
@@ -126,6 +129,7 @@ fun SettingsScreen(
     var cameraApi by remember(initial) { mutableStateOf(initial.cameraApi) }
     var autoStart by remember(initial) { mutableStateOf(initial.autoStart) }
     var timerRing by remember(initial) { mutableStateOf(initial.timerRing) }
+    var timersList by remember(initial) { mutableStateOf(initial.timersList) }
     val context = LocalContext.current
     var canOverlay by remember { mutableStateOf(AndroidSettings.canDrawOverlays(context)) }
     // Coming back from Android's permission screen: check again.
@@ -180,7 +184,7 @@ fun SettingsScreen(
         Button(onClick = {
             onSave(
                 Settings(
-                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart, timerRing = timerRing,
+                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart, timerRing = timerRing, timersList = timersList,
                     mealieUrl = mealieUrl, mealieToken = mealieToken,
                     room = room, workCalendar = workCal, alertsCalendar = alertsCal,
                 ),
@@ -261,6 +265,7 @@ fun SettingsScreen(
                             }
                             Switch(checked = timerRing, onCheckedChange = { timerRing = it })
                         }
+                        TodoListPicker(timersList, todoLists) { timersList = it }
                     }
                     Card("Démarrage", Icons.Filled.PowerSettingsNew) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -484,4 +489,39 @@ private fun roomLabel(r: Room) = when (r) {
     Room.CHAMBRE -> "Chambre"
     Room.SALON -> "Salon"
     Room.CUISINE -> "Cuisine"
+}
+
+/** Drop-down of Home Assistant's to-do lists for the shared timers; [selected] is an entity id. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TodoListPicker(selected: String, lists: List<TodoList>?, onSelect: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val current = lists?.firstOrNull { it.entityId == selected }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it && !lists.isNullOrEmpty() }) {
+            OutlinedTextField(
+                value = current?.let { "${it.name} · ${it.entityId}" } ?: selected,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Liste des minuteries") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+            )
+            ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                lists.orEmpty().forEach { l ->
+                    DropdownMenuItem(
+                        text = { Column { Text(l.name); Text(l.entityId, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                        onClick = { onSelect(l.entityId); open = false },
+                    )
+                }
+            }
+        }
+        val hint = when {
+            lists == null -> "Home Assistant injoignable : la liste ne peut pas être changée pour l'instant."
+            current == null && lists.isNotEmpty() -> "Liste introuvable dans Home Assistant : en choisir une."
+            lists.isEmpty() -> "Aucune liste de tâches dans Home Assistant (intégration « Local To-do »)."
+            else -> "La même liste sur toutes les tablettes pour partager les minuteries."
+        }
+        Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }

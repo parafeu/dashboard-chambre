@@ -163,6 +163,32 @@ class HaMessagesTest {
     }
 
     @Test
+    fun get_states_message() {
+        assertEquals(
+            Json.parseToJsonElement("""{"id":5,"type":"get_states"}"""),
+            Json.parseToJsonElement(HaProtocol.getStates(5)),
+        )
+    }
+
+    @Test
+    fun todo_lists_from_states_keep_only_todo_entities_sorted_by_name() {
+        val states = Json.parseToJsonElement(
+            """[{"entity_id":"todo.liste_dachats","state":"0","attributes":{"friendly_name":"Shopping list"}},
+                {"entity_id":"light.x","state":"on","attributes":{}},
+                {"entity_id":"todo.minuteries_foyer","state":"0","attributes":{"friendly_name":"Minuteries foyer"}},
+                {"entity_id":"todo.sans_nom","state":"0","attributes":{}}]""",
+        )
+        assertEquals(
+            listOf(
+                TodoList("todo.minuteries_foyer", "Minuteries foyer"),
+                TodoList("todo.liste_dachats", "Shopping list"),
+                TodoList("todo.sans_nom", "todo.sans_nom"),
+            ),
+            todoListsFrom(states),
+        )
+    }
+
+    @Test
     fun subscribe_todo_items_message() {
         assertEquals(
             Json.parseToJsonElement("""{"id":4,"type":"todo/item/subscribe","entity_id":"todo.minuteries_foyer"}"""),

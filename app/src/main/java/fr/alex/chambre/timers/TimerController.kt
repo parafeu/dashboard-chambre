@@ -34,6 +34,8 @@ class TimerController(
     private val room: () -> Room,
     private val clock: () -> Instant = Instant::now,
     private val tickMs: Long = 1_000,
+    /** The to-do list holding the timers (Réglages → « Liste des minuteries »). */
+    private val list: () -> String = { Entities.TIMERS_LIST },
 ) {
     private val source = MutableStateFlow<List<TodoItem>>(emptyList())
     private val stopped = MutableStateFlow<Set<String>>(emptySet())
@@ -93,7 +95,7 @@ class TimerController(
         if (refusedOffline()) return false
         val label = name.trim().ifEmpty { DEFAULT_TIMER_NAME }
         val description = timerDescription(clock().plusSeconds(seconds.toLong()), seconds, origin, roomKey(room()))
-        return ha.call("todo", "add_item", Entities.TIMERS_LIST, data("item" to label, "description" to description))
+        return ha.call("todo", "add_item", list(), data("item" to label, "description" to description))
     }
 
     /** « + Nouvelle minuterie »: [minutes] from now, named [name] or « Minuterie ». */
@@ -103,12 +105,12 @@ class TimerController(
         if (refusedOffline()) return false
         val t = timers.value.firstOrNull { it.id == id } ?: return false
         val description = timerDescription(t.end.plusSeconds(60), t.durationSec + 60, t.origin, roomKey(room()))
-        return ha.call("todo", "update_item", Entities.TIMERS_LIST, data("item" to id, "description" to description))
+        return ha.call("todo", "update_item", list(), data("item" to id, "description" to description))
     }
 
     suspend fun delete(id: String): Boolean {
         if (refusedOffline()) return false
-        return ha.call("todo", "remove_item", Entities.TIMERS_LIST, data("item" to id))
+        return ha.call("todo", "remove_item", list(), data("item" to id))
     }
 
     /** « Arrêter »: silent here at once, removed from HA now or on reconnection. */
@@ -124,7 +126,7 @@ class TimerController(
         // Another tablet may have removed it first: HA's « not found » must not show as an error. Any failure is
         // retried while the timer is still listed (a « not found » one is gone from the next list, so it stops there).
         scope.launch {
-            if (ha.callQuietly("todo", "remove_item", Entities.TIMERS_LIST, data("item" to id))) return@launch
+            if (ha.callQuietly("todo", "remove_item", list(), data("item" to id))) return@launch
             removeSent -= id
             delay(STOP_RETRY_MS)
             if (id in stopped.value && id !in removeSent && online.value && source.value.any { it.uid == id }) sendRemove(id)

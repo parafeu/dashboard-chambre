@@ -211,9 +211,11 @@ private fun App(vm: DashboardViewModel, phone: Boolean, startTab: TabRequest) {
             val preview by vm.cameraPreview.collectAsStateWithLifecycle()
             val calendarError by vm.announcements.error.collectAsStateWithLifecycle()
             val calendars by vm.deviceCalendars.collectAsStateWithLifecycle()
+            val todoLists by vm.todoLists.collectAsStateWithLifecycle()
             val mealieError by vm.cuisine.error.collectAsStateWithLifecycle()
             val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refreshCalendars() }
             LaunchedEffect(Unit) { vm.refreshCalendars() }
+            LaunchedEffect(conn) { if (conn == ConnState.CONNECTED) vm.refreshTodoLists() }
             SettingsScreen(
                 initial = s,
                 phone = phone,
@@ -230,6 +232,7 @@ private fun App(vm: DashboardViewModel, phone: Boolean, startTab: TabRequest) {
                 onTestVoice = vm::testVoice,
                 mealieError = mealieError,
                 calendars = calendars,
+                todoLists = todoLists,
                 onAllowCalendars = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
             )
         } else {
