@@ -95,7 +95,8 @@ per timer, because it is persisted by HA across restarts and edited item by item
 
 ## Removal
 
-- App: `SystemTimer.kt`, `Entities.KITCHEN_TIMERS`, `timerStartScript`, the `timer.finished` subscription and its
+- App: `SystemTimer.kt` on tablets (the phone's recipe chips keep using it — builder's call, the phone is out of
+  scope), `Entities.KITCHEN_TIMERS`, `timerStartScript`, the `timer.finished` subscription and its
   announcement path (`DeviceFeatures.timerEvents`, `AnnouncementController` timer branch) and the settings text
   mentioning « fin des minuteurs de cuisine ».
 - HA: helpers `timer.minuteur_1..3` and scripts `script.demarrer_minuteur{1,2,3}_{5,10}min`, deleted only after
