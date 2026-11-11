@@ -40,6 +40,8 @@ data class Settings(
     val timerRing: Boolean = true,
     /** HA to-do list holding the shared timers; every tablet must use the same one. */
     val timersList: String = Entities.TIMERS_LIST,
+    /** Asleep, really turn the screen off (LCD tablets); the camera then runs in a foreground service. */
+    val screenOff: Boolean = false,
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */
@@ -69,6 +71,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             mealieToken = cleanToken(p[MEALIE_TOKEN] ?: d.mealieToken),
             timerRing = p[TIMER_RING] ?: d.timerRing,
             timersList = p[TIMERS_LIST]?.takeIf { it.isNotBlank() } ?: d.timersList,
+            screenOff = p[SCREEN_OFF] ?: d.screenOff,
         )
     }
 
@@ -87,6 +90,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             p[MEALIE_TOKEN] = cleanToken(s.mealieToken)
             p[TIMER_RING] = s.timerRing
             p[TIMERS_LIST] = s.timersList.trim()
+            p[SCREEN_OFF] = s.screenOff
         }
     }
 
@@ -111,6 +115,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
         val AUTO_START = booleanPreferencesKey("auto_start")
         val TIMER_RING = booleanPreferencesKey("timer_ring")
         val TIMERS_LIST = stringPreferencesKey("timers_list")
+        val SCREEN_OFF = booleanPreferencesKey("screen_off")
         val MEALIE_URL = stringPreferencesKey("mealie_url")
         val MEALIE_TOKEN = stringPreferencesKey("mealie_token")
         val DEVICE_ID = stringPreferencesKey("mobile_app_device_id")

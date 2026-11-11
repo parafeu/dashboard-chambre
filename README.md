@@ -55,6 +55,10 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
   caméra en direct (zones en mouvement en vert) ; il empêche la mise en veille tant qu'il est ouvert.
 - **Veille** : écran noir après le délai réglé (1 min par défaut) sans mouvement devant la caméra ni toucher.
   Un mouvement ou un toucher réveille l'écran ; le premier toucher ne déclenche rien d'autre.
+  **Éteindre vraiment l'écran** (Réglages → Veille, pour les écrans LCD comme la Lenovo, qui restent légèrement
+  éclairés en noir) : la caméra passe dans un service au premier plan (notification « Détection de mouvement »),
+  Android éteint l'écran selon sa propre mise en veille, et un mouvement, une annonce ou une minuterie le rallume
+  directement sur le dashboard, par-dessus l'écran de verrouillage.
 - **Détection de mouvement** (OpenCV, soustraction de fond MOG2) : une zone qui bouge sur au moins 2 images
   sur 3 réveille l'écran ; les changements de lumière (plus de 60 % de l'image d'un coup) et la propre
   lumière de l'écran sont ignorés. Réglage « Taille minimale d'un mouvement » (3 % par défaut).

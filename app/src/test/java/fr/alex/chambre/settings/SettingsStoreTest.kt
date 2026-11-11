@@ -57,6 +57,14 @@ class SettingsStoreTest {
     }
 
     @Test
+    fun screen_off_defaults_off_and_round_trips() = runBlocking {
+        val s = store()
+        assertEquals(false, s.settings.first().screenOff)
+        s.save(Settings(screenOff = true))
+        assertEquals(true, s.settings.first().screenOff)
+    }
+
+    @Test
     fun trims_url_and_token() = runBlocking { // RF5
         val s = store()
         s.save(Settings(url = " http://ha:8123/ \n", token = "  tok \n"))

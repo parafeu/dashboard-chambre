@@ -15,8 +15,8 @@ android {
         applicationId = "fr.alex.chambre"
         minSdk = 28
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.6.0"
+        versionCode = 15
+        versionName = "1.6.1"
     }
 
     val keystoreProps = Properties().apply {
@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
+    implementation(libs.androidx.lifecycle.service)
     implementation(libs.datastore.preferences)
     implementation(libs.opencv)
     implementation(libs.glance.appwidget)
