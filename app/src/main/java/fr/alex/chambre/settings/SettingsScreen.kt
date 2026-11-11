@@ -125,6 +125,7 @@ fun SettingsScreen(
     var minArea by remember(initial) { mutableFloatStateOf(initial.sensitivity) }
     var cameraApi by remember(initial) { mutableStateOf(initial.cameraApi) }
     var autoStart by remember(initial) { mutableStateOf(initial.autoStart) }
+    var timerRing by remember(initial) { mutableStateOf(initial.timerRing) }
     val context = LocalContext.current
     var canOverlay by remember { mutableStateOf(AndroidSettings.canDrawOverlays(context)) }
     // Coming back from Android's permission screen: check again.
@@ -179,7 +180,7 @@ fun SettingsScreen(
         Button(onClick = {
             onSave(
                 Settings(
-                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart,
+                    url = url, token = token, sleepDelaySec = SLEEP_STEPS[delayIdx], sensitivity = minArea, cameraApi = cameraApi, autoStart = autoStart, timerRing = timerRing,
                     mealieUrl = mealieUrl, mealieToken = mealieToken,
                     room = room, workCalendar = workCal, alertsCalendar = alertsCal,
                 ),
@@ -226,7 +227,7 @@ fun SettingsScreen(
                         if (room == Room.CUISINE || room == Room.SALON) mealieFields()
                         if (room == Room.SALON) {
                             Text(
-                                "Annonces vocales : réunions du calendrier Travail 5 min avant, alertes du calendrier Alertes à confirmer, fin des minuteurs de cuisine.",
+                                "Annonces vocales : réunions du calendrier Travail 5 min avant, alertes du calendrier Alertes à confirmer.",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             if (calendars == null) {
@@ -249,6 +250,16 @@ fun SettingsScreen(
                                 Text(calendarError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                             FilledTonalButton(onClick = onTestVoice) { Text("Tester la voix") }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Sonner pour les minuteries", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Quand une minuterie de cuisine se termine, cette tablette sonne jusqu'à « Arrêter ».",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(checked = timerRing, onCheckedChange = { timerRing = it })
                         }
                     }
                     Card("Démarrage", Icons.Filled.PowerSettingsNew) {

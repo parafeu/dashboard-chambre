@@ -25,8 +25,6 @@ data class HaConfig(
     val url: String,
     val token: String,
     val entities: List<String> = Entities.ALL,
-    /** Also subscribe to HA's timer.finished events (living-room announcements). */
-    val timerEvents: Boolean = false,
     /** Also subscribe to the shared timers list [Entities.TIMERS_LIST] (wall tablets). */
     val timers: Boolean = false,
 )
@@ -41,8 +39,6 @@ interface HaApi {
     val forecastDaily: StateFlow<List<ForecastEntry>>
     val errors: SharedFlow<String>
 
-    /** HA bus events this connection subscribed to (timer.finished in living-room mode). */
-    val events: SharedFlow<Incoming.HaEvent>
 
     /** Items of [Entities.TIMERS_LIST]; null until loaded on the current connection (and again once it drops). */
     val timerItems: StateFlow<List<TodoItem>?> get() = NO_TIMER_ITEMS
@@ -89,8 +85,6 @@ class HaRepository(
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    private val _events = MutableSharedFlow<Incoming.HaEvent>(extraBufferCapacity = 16)
-    override val events: SharedFlow<Incoming.HaEvent> = _events.asSharedFlow()
 
     private val _timerItems = MutableStateFlow<List<TodoItem>?>(null)
     override val timerItems: StateFlow<List<TodoItem>?> = _timerItems.asStateFlow()
@@ -137,7 +131,6 @@ class HaRepository(
         var subId = -1
         var forecastId = -1
         var dailyId = -1
-        var timerEventsId = -1
         var timersId = -1
         try {
             for (msg in c.incoming) {
@@ -150,10 +143,6 @@ class HaRepository(
                         c.send(HaProtocol.subscribeForecast(forecastId, Entities.WEATHER))
                         dailyId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(dailyId, Entities.WEATHER, "daily"))
-                        if (cfg.timerEvents) {
-                            timerEventsId = c.nextId()
-                            c.send(HaProtocol.subscribeEvents(timerEventsId, "timer.finished"))
-                        }
                         if (cfg.timers) {
                             timersId = c.nextId()
                             c.send(HaProtocol.subscribeTodoItems(timersId, Entities.TIMERS_LIST))
@@ -169,7 +158,6 @@ class HaRepository(
                         forecastId -> _forecast.value = msg.hours
                         dailyId -> _forecastDaily.value = msg.hours
                     }
-                    is Incoming.HaEvent -> if (msg.id == timerEventsId) _events.tryEmit(msg)
                     is Incoming.TodoItemsEvent -> if (msg.id == timersId) _timerItems.value = msg.items
                     Incoming.Unknown -> Unit
                 }

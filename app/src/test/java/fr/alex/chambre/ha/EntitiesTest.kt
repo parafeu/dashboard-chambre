@@ -21,7 +21,7 @@ class EntitiesTest {
     @Test
     fun salon_covers_every_room() {
         val l = entitiesFor(Room.SALON)
-        for (e in listOf("cover.volet_salon", "light.lumieres_salon", "cover.volet_cuisine", "timer.minuteur_2",
+        for (e in listOf("cover.volet_salon", "light.lumieres_salon", "cover.volet_cuisine",
             "todo.liste_dachats", "switch.grillplats_plug", "sensor.salon_temperature",
             Entities.LIGHT, Entities.COVER, Entities.WEATHER)) {
             assertTrue(e, e in l)

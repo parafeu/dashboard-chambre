@@ -29,7 +29,6 @@ private class FakeApi : HaApi {
     override val forecast = MutableStateFlow<List<ForecastEntry>>(emptyList())
     override val forecastDaily = MutableStateFlow<List<ForecastEntry>>(emptyList())
     override val errors = MutableSharedFlow<String>()
-    override val events = MutableSharedFlow<fr.alex.chambre.ha.Incoming.HaEvent>()
     val calls = mutableListOf<Call>()
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
         calls += Call(domain, service, entityId, data)

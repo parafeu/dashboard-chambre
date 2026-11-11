@@ -251,19 +251,4 @@ class HaRepositoryTest {
         withTimeout(5_000) { r.timerItems.first { it == null } }
         Unit
     }
-
-    @Test
-    fun timer_events_subscription_and_relay() = runBlocking {
-        val fake = FakeHa().also(::enqueue)
-        val r = HaRepository(scope, client, flowOf(HaConfig(server.url("/").toString().trimEnd('/'), "secret", timerEvents = true)), listOf(10))
-        fake.handshake()
-        val sub = fake.next()
-        assertEquals("subscribe_events", sub["type"]!!.jsonPrimitive.content)
-        assertEquals("timer.finished", sub["event_type"]!!.jsonPrimitive.content)
-        val id = sub["id"]!!.jsonPrimitive.int
-        val got = async(Dispatchers.IO) { withTimeout(5_000) { r.events.first() } }
-        delay(100)
-        fake.socket.send("""{"id":$id,"type":"event","event":{"event_type":"timer.finished","data":{"entity_id":"timer.minuteur_2"}}}""")
-        assertEquals("timer.minuteur_2", got.await().data["entity_id"]!!.jsonPrimitive.content)
-    }
 }

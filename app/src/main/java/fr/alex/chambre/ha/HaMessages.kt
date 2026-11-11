@@ -25,7 +25,6 @@ sealed interface Incoming {
     data object AuthOk : Incoming
     data class AuthInvalid(val message: String) : Incoming
     data class Result(val id: Int, val success: Boolean, val errorMessage: String?, val result: JsonElement? = null) : Incoming
-    data class HaEvent(val id: Int, val eventType: String, val data: JsonObject) : Incoming
     data class EntitiesEvent(
         val id: Int,
         val added: Map<String, EntityState>,
@@ -60,9 +59,6 @@ object HaProtocol {
     }
 
     private fun parseEvent(id: Int, event: JsonObject): Incoming {
-        event.str("event_type")?.let { type ->
-            return Incoming.HaEvent(id, type, event["data"] as? JsonObject ?: JsonObject(emptyMap()))
-        }
         (event["items"] as? JsonArray)?.let { items ->
             return Incoming.TodoItemsEvent(
                 id,
@@ -136,12 +132,6 @@ object HaProtocol {
         put("id", id)
         put("type", "todo/item/subscribe")
         put("entity_id", entityId)
-    }.toString()
-
-    fun subscribeEvents(id: Int, eventType: String): String = buildJsonObject {
-        put("id", id)
-        put("type", "subscribe_events")
-        put("event_type", eventType)
     }.toString()
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content

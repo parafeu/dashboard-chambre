@@ -51,10 +51,6 @@ object Entities {
     const val SALON_HUMIDITY = "sensor.salon_humidity"
 
     const val KITCHEN_COVER = "cover.volet_cuisine"
-    val KITCHEN_TIMERS = listOf("timer.minuteur_1", "timer.minuteur_2", "timer.minuteur_3")
-    /** script.demarrer_minuteur{n}_{5min|10min} start timer n for that duration. */
-    fun timerStartScript(timer: String, minutes: Int): String =
-        "script.demarrer_" + timer.removePrefix("timer.").replace("_", "") + "_" + minutes + "min"
     const val SHOPPING_LIST = "todo.liste_dachats"
     /** Local To-do list holding the shared kitchen timers (one item per timer, see timers/SharedTimer.kt). */
     const val TIMERS_LIST = "todo.minuteries_foyer"
@@ -84,8 +80,7 @@ fun entitiesFor(room: Room): List<String> = when (room) {
     Room.SALON -> (
         Entities.ALL +
             listOf(Entities.SALON_ROOM.light, Entities.SALON_ROOM.cover, Entities.SALON_TEMPERATURE, Entities.SALON_HUMIDITY) +
-            listOf(Entities.KITCHEN_COVER, Entities.SHOPPING_LIST, Entities.KITCHEN_TABLET_PLUG) + Entities.KITCHEN_TIMERS +
-            Entities.KITCHEN_TIMERS.flatMap { t -> listOf(5, 10).map { Entities.timerStartScript(t, it) } }
+            listOf(Entities.KITCHEN_COVER, Entities.SHOPPING_LIST, Entities.KITCHEN_TABLET_PLUG)
         ).distinct()
     Room.CUISINE -> listOf(Entities.WEATHER, Entities.KITCHEN_COVER)
 }

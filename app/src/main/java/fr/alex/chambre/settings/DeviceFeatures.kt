@@ -15,27 +15,31 @@ fun formFactorFor(smallestWidthDp: Int): FormFactor = if (smallestWidthDp < 600)
 data class DeviceFeatures(
     /** Home Assistant entities to subscribe to. */
     val entities: List<String>,
-    /** HA timer.finished events (living-room announcements). */
-    val timerEvents: Boolean,
     val announcements: Boolean,
     val mealie: Boolean,
     val bootStart: Boolean,
+    /** Follows the shared kitchen timers (rings when one ends, if the setting allows). */
+    val timers: Boolean,
+    /** Shows the « Minuteries » panel (the rooms with a kitchen screen). */
+    val timerPanel: Boolean,
 )
 
 /** The phone shows the living room's global dashboard and none of the wall-tablet features, whatever room is stored. */
 fun deviceFeatures(settings: Settings, formFactor: FormFactor): DeviceFeatures = when (formFactor) {
     FormFactor.PHONE -> DeviceFeatures(
         entities = entitiesFor(Room.SALON),
-        timerEvents = false,
         announcements = false,
         mealie = true,
         bootStart = false,
+        timers = false,
+        timerPanel = false,
     )
     FormFactor.TABLET -> DeviceFeatures(
         entities = entitiesFor(settings.room),
-        timerEvents = settings.room == Room.SALON,
         announcements = settings.room == Room.SALON,
         mealie = settings.room == Room.CUISINE || settings.room == Room.SALON,
         bootStart = settings.autoStart,
+        timers = true,
+        timerPanel = settings.room == Room.CUISINE || settings.room == Room.SALON,
     )
 }

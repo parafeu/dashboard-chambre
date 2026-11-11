@@ -31,7 +31,6 @@ private class FakeHa : HaApi {
     override val forecast = MutableStateFlow<List<ForecastEntry>>(emptyList())
     override val forecastDaily = MutableStateFlow<List<ForecastEntry>>(emptyList())
     override val errors = MutableSharedFlow<String>()
-    override val events = MutableSharedFlow<Incoming.HaEvent>()
     override val timerItems = MutableStateFlow<List<TodoItem>?>(emptyList())
     val calls = mutableListOf<Call>()
     var answer = true
