@@ -9,6 +9,7 @@ import fr.alex.chambre.ha.Incoming
 import fr.alex.chambre.ha.TodoItem
 import fr.alex.chambre.settings.Room
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
@@ -229,5 +230,48 @@ class TimerControllerTest {
         ha.timerItems.value = listOf(TodoItem("z", "acheter du pain", null), item("a", 60))
         val c = controller()
         assertEquals(listOf("a"), c.timers.value.map { it.id })
+    }
+
+    @Test
+    fun failed_stop_is_retried() = runTest {
+        ha.timerItems.value = listOf(item("a", -5))
+        ha.answer = false
+        val c = controller()
+        c.stop("a")
+        runCurrent()
+        assertEquals(1, ha.calls.size)
+        ha.answer = true
+        tick(5)
+        assertEquals(2, ha.calls.size)
+        assertTrue(ha.calls.all { it.service == "todo.remove_item" && it.quiet })
+    }
+
+    @Test
+    fun start_offline_reports_hors_ligne() = runTest {
+        ha.offline()
+        val c = controller()
+        val messages = mutableListOf<String>()
+        backgroundScope.launch { c.refusals.collect { messages += it } }
+        runCurrent()
+        assertFalse(c.startFree(5, ""))
+        assertFalse(c.addMinute("a"))
+        runCurrent()
+        assertEquals(listOf("Home Assistant est hors ligne", "Home Assistant est hors ligne"), messages)
+    }
+
+    @Test
+    fun stopped_timer_never_rings_on_restart() = runTest {
+        cache.items = listOf(item("a", -30))
+        cache.stoppedIds = setOf("a")
+        ha.offline()
+        val seen = mutableListOf<List<String>>()
+        val slowCache = object : TimerCache by cache {
+            override suspend fun stopped(): Set<String> { kotlinx.coroutines.delay(50); return cache.stopped() } // DataStore suspends
+        }
+        val c = TimerController(backgroundScope, ha, slowCache, room = { Room.CUISINE }, clock = { clock }, tickMs = 1_000)
+        backgroundScope.launch { c.ringing.collect { seen += it.map { t -> t.id } } }
+        runCurrent()
+        tick(1)
+        assertTrue(seen.toString(), seen.all { it.isEmpty() })
     }
 }

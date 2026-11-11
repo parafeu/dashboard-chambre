@@ -19,6 +19,11 @@ class RingStateTest {
     }
 
     @Test
+    fun unknown_setting_shows_nothing() { // settings not loaded yet: no burst on a tablet set to stay silent
+        assertTrue(ringingShown(ringing, enabled = null, tablet = true).isEmpty())
+    }
+
+    @Test
     fun enabled_tablet_shows_ringing() {
         assertEquals(ringing, ringingShown(ringing, enabled = true, tablet = true))
     }

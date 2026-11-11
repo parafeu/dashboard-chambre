@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,9 @@ fun TimersPanel(vm: DashboardViewModel, modifier: Modifier = Modifier) {
     val online by vm.timers.online.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf(false) }
+    // A dialog is its own window, above the ringing overlay: close it so « Arrêter » is never hidden.
+    val ringingHere by vm.ringingShown.collectAsStateWithLifecycle()
+    LaunchedEffect(ringingHere.isNotEmpty()) { if (ringingHere.isNotEmpty()) dialog = false }
     val colors = MaterialTheme.colorScheme
 
     Surface(modifier, shape = RoundedCornerShape(32.dp), color = colors.surfaceContainer) {

@@ -7,7 +7,10 @@ import fr.alex.chambre.ha.TodoItem
 import fr.alex.chambre.settings.Room
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,13 +53,18 @@ class TimerController(
     val ringing: StateFlow<List<SharedTimer>> = combine(timers, _now) { ts, t -> ts.filter { it.isRinging(t) } }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+    private val _refusals = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    /** « Home Assistant est hors ligne » when a start, « +1 min » or × cannot reach HA (for a snackbar). */
+    val refusals: SharedFlow<String> = _refusals.asSharedFlow()
+
     /** Stops whose `remove_item` was already sent on the current connection. */
     private val removeSent = mutableSetOf<String>()
 
     init {
         scope.launch {
-            source.value = cache.lastKnown()
+            // Stops first: a timer stopped here must never show as ringing, even for one frame at start-up.
             stopped.value = cache.stopped()
+            source.value = cache.lastKnown()
             ha.timerItems.collect { items ->
                 if (items == null) {
                     removeSent.clear()
@@ -82,7 +90,7 @@ class TimerController(
     }
 
     suspend fun start(seconds: Int, name: String, origin: String): Boolean {
-        if (!online.value) return false
+        if (refusedOffline()) return false
         val label = name.trim().ifEmpty { DEFAULT_TIMER_NAME }
         val description = timerDescription(clock().plusSeconds(seconds.toLong()), seconds, origin, roomKey(room()))
         return ha.call("todo", "add_item", Entities.TIMERS_LIST, data("item" to label, "description" to description))
@@ -92,14 +100,14 @@ class TimerController(
     suspend fun startFree(minutes: Int, name: String): Boolean = start(minutes * 60, name, freeOrigin(room()))
 
     suspend fun addMinute(id: String): Boolean {
-        if (!online.value) return false
+        if (refusedOffline()) return false
         val t = timers.value.firstOrNull { it.id == id } ?: return false
         val description = timerDescription(t.end.plusSeconds(60), t.durationSec + 60, t.origin, roomKey(room()))
         return ha.call("todo", "update_item", Entities.TIMERS_LIST, data("item" to id, "description" to description))
     }
 
     suspend fun delete(id: String): Boolean {
-        if (!online.value) return false
+        if (refusedOffline()) return false
         return ha.call("todo", "remove_item", Entities.TIMERS_LIST, data("item" to id))
     }
 
@@ -113,8 +121,25 @@ class TimerController(
 
     private fun sendRemove(id: String) {
         removeSent += id
-        // Another tablet may have removed it first: HA's « not found » must not show as an error.
-        scope.launch { ha.callQuietly("todo", "remove_item", Entities.TIMERS_LIST, data("item" to id)) }
+        // Another tablet may have removed it first: HA's « not found » must not show as an error. Any failure is
+        // retried while the timer is still listed (a « not found » one is gone from the next list, so it stops there).
+        scope.launch {
+            if (ha.callQuietly("todo", "remove_item", Entities.TIMERS_LIST, data("item" to id))) return@launch
+            removeSent -= id
+            delay(STOP_RETRY_MS)
+            if (id in stopped.value && id !in removeSent && online.value && source.value.any { it.uid == id }) sendRemove(id)
+        }
+    }
+
+    private fun refusedOffline(): Boolean {
+        if (online.value) return false
+        _refusals.tryEmit(OFFLINE_MESSAGE)
+        return true
+    }
+
+    private companion object {
+        const val STOP_RETRY_MS = 5_000L
+        const val OFFLINE_MESSAGE = "Home Assistant est hors ligne"
     }
 
     private fun data(vararg pairs: Pair<String, String>) = JsonObject(pairs.associate { (k, v) -> k to JsonPrimitive(v) })

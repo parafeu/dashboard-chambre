@@ -104,7 +104,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     /** The timers ringing on this tablet: drives the ringing overlay, the alarm sound and the wake-up. */
     val ringingShown: StateFlow<List<SharedTimer>> = combine(timers.ringing, settings) { ringing, s ->
-        fr.alex.chambre.timers.ringingShown(ringing, enabled = s?.timerRing ?: true, tablet = formFactor == FormFactor.TABLET)
+        fr.alex.chambre.timers.ringingShown(ringing, enabled = s?.timerRing, tablet = formFactor == FormFactor.TABLET)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val alarmPlayer = AlarmPlayer(app)

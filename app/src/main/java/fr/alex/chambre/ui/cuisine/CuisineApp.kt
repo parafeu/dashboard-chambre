@@ -85,6 +85,7 @@ fun CuisineApp(vm: DashboardViewModel, onOpenSettings: () -> Unit) {
     val opened by vm.cuisine.opened.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
+    LaunchedEffect(Unit) { vm.timers.refusals.collect { snackbar.showSnackbar(it) } }
     // Cooking: the screen never sleeps while a recipe is open.
     LaunchedEffect(opened != null) { vm.presence.hold = opened != null }
 
@@ -156,10 +157,8 @@ fun CuisineRecipeOverlay(vm: DashboardViewModel, snackbar: SnackbarHostState, st
                     startSystemTimer(context, seconds, name) // the phone keeps the Clock app
                 } else if (vm.timers.start(seconds, name, origin)) {
                     "Minuterie de ${timerLabel(seconds)} lancée"
-                } else if (!vm.timers.online.value) {
-                    "Home Assistant est hors ligne"
                 } else {
-                    null // HA refused: its error is already shown
+                    null // offline or refused by HA: already shown (timers.refusals, ha.errors)
                 }
                 if (message != null) snackbar.showSnackbar(message)
             }

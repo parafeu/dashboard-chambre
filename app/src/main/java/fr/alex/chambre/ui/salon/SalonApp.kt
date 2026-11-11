@@ -99,6 +99,7 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
     val sharedTimers by vm.timers.timers.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
+    LaunchedEffect(Unit) { vm.timers.refusals.collect { snackbar.showSnackbar(it) } }
 
     var tab by remember { mutableStateOf(SalonTab.SALON) }
     var touches by remember { mutableIntStateOf(0) }
