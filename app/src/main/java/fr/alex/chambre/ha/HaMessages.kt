@@ -17,6 +17,9 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.time.OffsetDateTime
 
+/** One item of a Home Assistant to-do list (`todo/item/subscribe`). */
+data class TodoItem(val uid: String, val summary: String, val description: String?)
+
 sealed interface Incoming {
     data object AuthRequired : Incoming
     data object AuthOk : Incoming
