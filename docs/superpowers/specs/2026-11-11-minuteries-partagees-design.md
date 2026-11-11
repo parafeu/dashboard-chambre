@@ -40,7 +40,7 @@ work and are removed.
 - **Cuisine screen** (Lenovo, and the Salon tablet's « Cuisine » tab, which reuses `CuisinePanels`): a new
   « Minuteries » panel between Volet and Recettes (~330 dp wide; Volet narrows, recipes go to two columns).
   - One card per timer, soonest first: name (large), origin line (recipe · step title, or « Lancée au salon /
-    en cuisine / dans la chambre » for a free timer), remaining time in large primary digits (m:ss, h:mm:ss
+    en cuisine » for a free timer), remaining time in large primary digits (m:ss, h:mm:ss
     above an hour), a thin progress bar, « +1 min » and a × (delete, no confirmation).
   - A ringing timer's card turns primary (orange) with « Terminée » and an « Arrêter » button; ringing cards go first.
   - « + Nouvelle minuterie » at the bottom of the panel. When the list overflows, it scrolls; the button stays.
