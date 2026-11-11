@@ -78,7 +78,6 @@ Garde le keystore : les mises à jour de l'app sur la tablette doivent être sig
   - agenda **Alertes** (ex. « Litière » récurrente) : à l'heure de l'événement
     (9 h pour un événement « journée »), écran plein « C'est fait » ; la voix répète toutes les 5 min
     pendant 1 h, l'écran reste jusqu'à confirmation ;
-  - fin d'un minuteur de cuisine : « Minuteur N terminé », répété toutes les 30 s (5 fois) jusqu'à OK.
 - Une annonce réveille l'écran. « Tester la voix » (Réglages) vérifie le haut-parleur.
 
 Les agendas ne passent pas par Home Assistant : l'app lit ceux **synchronisés sur la tablette**
@@ -100,7 +99,13 @@ Réglages → Pièce : **Cuisine**, puis l'**adresse Mealie** et une **clé API 
   bandeau « Au menu » quand un repas est planifié dans Mealie aujourd'hui.
 - Fiche recette : portions − / + (quantités recalculées pour les ingrédients analysés par Mealie), ingrédients à
   cocher, étapes une par une. Chaque durée du texte (« 10 minutes », « 30 à 45 secondes ») est une pastille ⏱ :
-  un appui crée une minuterie dans l'horloge Android. L'écran ne se met pas en veille pendant une recette.
+  un appui lance une minuterie partagée (sur le téléphone : dans l'horloge Android). L'écran ne se met pas en veille
+  pendant une recette.
+- **Minuteries partagées** (panneau entre Volet et Recettes) : plusieurs à la fois, « + Nouvelle minuterie » pour
+  une durée libre, « +1 min », ×. Elles sont stockées dans la liste de tâches Home Assistant `todo.minuteries_foyer`
+  (intégration « Local To-do », à créer une fois) et visibles sur toutes les tablettes. À la fin, chaque tablette
+  dont « Sonner pour les minuteries » est activé (Réglages, toutes les pièces) sonne avec l'alarme Android et affiche
+  « Arrêter » ; arrêter sur une tablette l'arrête partout, même hors ligne (appliqué au retour de la connexion).
 - Les ingrédients « non analysés » dans Mealie s'affichent tels quels : utiliser « Analyser les ingrédients » dans
   Mealie pour qu'ils suivent les portions.
 
