@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import fr.alex.chambre.battery.RegistrationStore
+import fr.alex.chambre.ha.Entities
 import java.util.UUID
 
 /** Which room this tablet serves: the bedroom panel, or the living-room dashboard with announcements. */
@@ -35,6 +36,10 @@ data class Settings(
     /** Mealie server (Cuisine mode) and its API key; blank until set in the settings. */
     val mealieUrl: String = "",
     val mealieToken: String = "",
+    /** Ring on this tablet when a shared kitchen timer ends. */
+    val timerRing: Boolean = true,
+    /** HA to-do list holding the shared timers; every tablet must use the same one. */
+    val timersList: String = Entities.TIMERS_LIST,
 )
 
 /** Trims, drops trailing slashes and adds `http://` when no scheme was typed. */
@@ -62,6 +67,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             autoStart = p[AUTO_START] ?: d.autoStart,
             mealieUrl = p[MEALIE_URL] ?: d.mealieUrl,
             mealieToken = cleanToken(p[MEALIE_TOKEN] ?: d.mealieToken),
+            timerRing = p[TIMER_RING] ?: d.timerRing,
+            timersList = p[TIMERS_LIST]?.takeIf { it.isNotBlank() } ?: d.timersList,
         )
     }
 
@@ -78,6 +85,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
             p[AUTO_START] = s.autoStart
             p[MEALIE_URL] = normalizeUrl(s.mealieUrl)
             p[MEALIE_TOKEN] = cleanToken(s.mealieToken)
+            p[TIMER_RING] = s.timerRing
+            p[TIMERS_LIST] = s.timersList.trim()
         }
     }
 
@@ -100,6 +109,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) : Registratio
         val ALERTS_CAL = stringPreferencesKey("alerts_calendar")
         val CAMERA_API = stringPreferencesKey("camera_api")
         val AUTO_START = booleanPreferencesKey("auto_start")
+        val TIMER_RING = booleanPreferencesKey("timer_ring")
+        val TIMERS_LIST = stringPreferencesKey("timers_list")
         val MEALIE_URL = stringPreferencesKey("mealie_url")
         val MEALIE_TOKEN = stringPreferencesKey("mealie_token")
         val DEVICE_ID = stringPreferencesKey("mobile_app_device_id")

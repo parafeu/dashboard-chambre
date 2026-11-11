@@ -87,7 +87,7 @@ fun RecipeScreen(
     opened: OpenedRecipe,
     onBack: () -> Unit,
     onRetry: () -> Unit,
-    onTimer: (seconds: Int, label: String) -> Unit,
+    onTimer: (seconds: Int, name: String, origin: String) -> Unit,
     /** Portrait phone: ingredients above the steps, the whole screen scrolls. */
     stacked: Boolean = false,
 ) {
@@ -110,7 +110,7 @@ fun RecipeScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, String) -> Unit, stacked: Boolean) {
+private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, String, String) -> Unit, stacked: Boolean) {
     var servings by remember(recipe.slug) { mutableDoubleStateOf(recipe.baseServings) }
     var ticked by remember(recipe.slug) { mutableStateOf(emptySet<Int>()) }
     var current by remember(recipe.slug) { mutableIntStateOf(0) }
@@ -215,7 +215,7 @@ private fun RecipeContent(recipe: Recipe, onBack: () -> Unit, onTimer: (Int, Str
                         if (on && step.text.isNotBlank()) {
                             StepText(
                                 text = step.text,
-                                onTimer = { seconds -> onTimer(seconds, step.title.ifBlank { recipe.name }) },
+                                onTimer = { seconds -> onTimer(seconds, step.title.ifBlank { recipe.name }, "${recipe.name} · étape ${i + 1}") },
                                 modifier = Modifier.padding(start = 50.dp),
                             )
                         }

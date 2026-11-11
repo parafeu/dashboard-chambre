@@ -1,7 +1,5 @@
 package fr.alex.chambre.announce
 
-import fr.alex.chambre.ha.Entities
-import fr.alex.chambre.ha.HaApi
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.settings.Settings
 import kotlinx.coroutines.CoroutineDispatcher
@@ -22,9 +20,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
 import java.time.ZoneId
 
@@ -39,12 +34,11 @@ interface Speaker {
 }
 
 /**
- * Living-room announcements: reads the tablet’s work and alerts calendars every minute, listens for
- * finished kitchen timers (Home Assistant), runs [AnnouncementEngine] every [tickMs] and speaks what it decides.
+ * Living-room announcements: reads the tablet’s work and alerts calendars every minute, runs
+ * [AnnouncementEngine] every [tickMs] and speaks what it decides.
  */
 class AnnouncementController(
     private val scope: CoroutineScope,
-    private val api: HaApi,
     private val source: CalendarSource,
     settings: Flow<Settings>,
     private val store: DoneStore,
@@ -97,16 +91,6 @@ class AnnouncementController(
             engine = e
             doneCache.clear()
             doneCache += store.done()
-        }
-        launch {
-            api.events.collect { ev ->
-                if (ev.eventType != "timer.finished") return@collect
-                val id = (ev.data["entity_id"] as? JsonPrimitive)?.contentOrNull ?: return@collect
-                if (id !in Entities.KITCHEN_TIMERS) return@collect // other HA timers (automations) stay silent
-                val name = api.entities.value[id]?.attributes?.get("friendly_name")?.jsonPrimitive?.contentOrNull ?: id
-                lock.withLock { e.timerFinished(name, now()) }
-                tick()
-            }
         }
         launch {
             // The tablet's calendar database is local: read it every refreshMs, with or without HA.

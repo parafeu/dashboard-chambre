@@ -22,6 +22,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.alex.chambre.ha.Entities
 import fr.alex.chambre.ha.HaConfig
+import fr.alex.chambre.ha.TodoList
 import fr.alex.chambre.settings.Room
 import fr.alex.chambre.ha.HaRepository
 import fr.alex.chambre.presence.PresenceController
@@ -43,6 +44,10 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import fr.alex.chambre.mealie.CuisineController
 import fr.alex.chambre.mealie.MealieClient
+import fr.alex.chambre.timers.AlarmPlayer
+import fr.alex.chambre.timers.SharedTimer
+import fr.alex.chambre.timers.TimerController
+import fr.alex.chambre.timers.TimerStore
 import java.util.concurrent.TimeUnit
 
 
@@ -57,7 +62,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val formFactor: FormFactor = formFactorFor(app.resources.configuration.smallestScreenWidthDp)
 
     private val haConfig = settings.filterNotNull()
-        .map { s -> deviceFeatures(s, formFactor).let { f -> HaConfig(s.url, s.token, f.entities, timerEvents = f.timerEvents) } }
+        .map { s -> deviceFeatures(s, formFactor).let { f -> HaConfig(s.url, s.token, f.entities, timers = f.timers, timersList = s.timersList) } }
         .distinctUntilChanged()
 
     private val client = OkHttpClient.Builder().pingInterval(30, TimeUnit.SECONDS).build()
@@ -89,6 +94,31 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope,
         sleepDelayMs = { (settings.value?.sleepDelaySec ?: Settings().sleepDelaySec) * 1_000L },
     ).also { if (formFactor == FormFactor.TABLET) it.start() }
+
+    /** Shared kitchen timers (Home Assistant to-do list), on every wall tablet. */
+    val timers = TimerController(
+        viewModelScope,
+        ha,
+        TimerStore(app.dataStore),
+        room = { settings.value?.room ?: Room.CHAMBRE },
+        list = { settings.value?.timersList ?: Entities.TIMERS_LIST },
+    )
+
+    /** The timers ringing on this tablet: drives the ringing overlay, the alarm sound and the wake-up. */
+    val ringingShown: StateFlow<List<SharedTimer>> = combine(timers.ringing, settings) { ringing, s ->
+        fr.alex.chambre.timers.ringingShown(ringing, enabled = s?.timerRing, tablet = formFactor == FormFactor.TABLET)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val alarmPlayer = AlarmPlayer(app)
+
+    init {
+        viewModelScope.launch {
+            ringingShown.map { it.isNotEmpty() }.distinctUntilChanged().collect { ringing ->
+                presence.alarm = ringing
+                if (ringing) alarmPlayer.start() else alarmPlayer.stop()
+            }
+        }
+    }
 
     val battery = BatteryMonitor(app).also { it.start() }
 
@@ -122,7 +152,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** Living-room announcements (does nothing in bedroom mode). */
     val announcements = AnnouncementController(
         viewModelScope,
-        ha,
         calendarSource,
         settings.filterNotNull(),
         AnnouncementStore(app.dataStore),
@@ -141,10 +170,19 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         announcements.refreshNow()
     }
 
+    private val _todoLists = MutableStateFlow<List<TodoList>?>(null)
+    /** Home Assistant's to-do lists for the « Liste des minuteries » picker; null when HA cannot be reached. */
+    val todoLists: StateFlow<List<TodoList>?> = _todoLists.asStateFlow()
+
+    fun refreshTodoLists() {
+        viewModelScope.launch { _todoLists.value = ha.todoLists() }
+    }
+
     fun testVoice() = speaker.say("Ceci est un test de la tablette du salon.")
 
     override fun onCleared() {
         speaker.shutdown()
+        alarmPlayer.stop()
         battery.stop()
     }
 

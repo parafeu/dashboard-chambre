@@ -25,9 +25,13 @@ data class HaConfig(
     val url: String,
     val token: String,
     val entities: List<String> = Entities.ALL,
-    /** Also subscribe to HA's timer.finished events (living-room announcements). */
-    val timerEvents: Boolean = false,
+    /** Also subscribe to the shared timers list [Entities.TIMERS_LIST] (wall tablets). */
+    val timers: Boolean = false,
+    /** The to-do list holding the shared timers (chosen in the settings). */
+    val timersList: String = Entities.TIMERS_LIST,
 )
+
+private val NO_TIMER_ITEMS: StateFlow<List<TodoItem>?> = MutableStateFlow(null)
 
 /** What the UI needs from Home Assistant. */
 interface HaApi {
@@ -37,8 +41,9 @@ interface HaApi {
     val forecastDaily: StateFlow<List<ForecastEntry>>
     val errors: SharedFlow<String>
 
-    /** HA bus events this connection subscribed to (timer.finished in living-room mode). */
-    val events: SharedFlow<Incoming.HaEvent>
+
+    /** Items of [Entities.TIMERS_LIST]; null until loaded on the current connection (and again once it drops). */
+    val timerItems: StateFlow<List<TodoItem>?> get() = NO_TIMER_ITEMS
 
     suspend fun call(
         domain: String,
@@ -46,6 +51,17 @@ interface HaApi {
         entityId: String,
         data: JsonObject = JsonObject(emptyMap()),
     ): Boolean
+
+    /** Like [call], but a failure or HA being offline is not reported on [errors]. */
+    suspend fun callQuietly(
+        domain: String,
+        service: String,
+        entityId: String,
+        data: JsonObject = JsonObject(emptyMap()),
+    ): Boolean = call(domain, service, entityId, data)
+
+    /** The to-do lists in Home Assistant (settings picker); null when HA cannot be reached. */
+    suspend fun todoLists(): List<TodoList>? = null
 }
 
 /**
@@ -74,8 +90,9 @@ class HaRepository(
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
     override val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    private val _events = MutableSharedFlow<Incoming.HaEvent>(extraBufferCapacity = 16)
-    override val events: SharedFlow<Incoming.HaEvent> = _events.asSharedFlow()
+
+    private val _timerItems = MutableStateFlow<List<TodoItem>?>(null)
+    override val timerItems: StateFlow<List<TodoItem>?> = _timerItems.asStateFlow()
 
     @Volatile
     private var current: HaConnection? = null
@@ -119,7 +136,7 @@ class HaRepository(
         var subId = -1
         var forecastId = -1
         var dailyId = -1
-        var timerEventsId = -1
+        var timersId = -1
         try {
             for (msg in c.incoming) {
                 when (msg) {
@@ -131,9 +148,9 @@ class HaRepository(
                         c.send(HaProtocol.subscribeForecast(forecastId, Entities.WEATHER))
                         dailyId = c.nextId()
                         c.send(HaProtocol.subscribeForecast(dailyId, Entities.WEATHER, "daily"))
-                        if (cfg.timerEvents) {
-                            timerEventsId = c.nextId()
-                            c.send(HaProtocol.subscribeEvents(timerEventsId, "timer.finished"))
+                        if (cfg.timers) {
+                            timersId = c.nextId()
+                            c.send(HaProtocol.subscribeTodoItems(timersId, cfg.timersList))
                         }
                         current = c
                         _conn.value = ConnState.CONNECTED
@@ -146,13 +163,14 @@ class HaRepository(
                         forecastId -> _forecast.value = msg.hours
                         dailyId -> _forecastDaily.value = msg.hours
                     }
-                    is Incoming.HaEvent -> if (msg.id == timerEventsId) _events.tryEmit(msg)
+                    is Incoming.TodoItemsEvent -> if (msg.id == timersId) _timerItems.value = msg.items
                     Incoming.Unknown -> Unit
                 }
             }
             return ConnState.OFFLINE
         } finally {
             current = null
+            _timerItems.value = null
             c.close()
             pending.keys.toList().forEach { id -> pending.remove(id)?.complete(Incoming.Result(id, false, OFFLINE_MESSAGE)) }
         }
@@ -175,6 +193,16 @@ class HaRepository(
 
     override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
         val result = request(reportErrors = true) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
+        return result?.success == true
+    }
+
+    override suspend fun todoLists(): List<TodoList>? {
+        val result = request(reportErrors = false) { id -> HaProtocol.getStates(id) } ?: return null
+        return if (result.success) todoListsFrom(result.result) else null
+    }
+
+    override suspend fun callQuietly(domain: String, service: String, entityId: String, data: JsonObject): Boolean {
+        val result = request(reportErrors = false) { id -> HaProtocol.callService(id, domain, service, entityId, data) }
         return result?.success == true
     }
 

@@ -24,9 +24,8 @@ class RoomSummaryTest {
 
     @Test
     fun kitchen() {
-        val idle = e("t", "idle")
-        assertEquals("Volet ouvert · minuteurs prêts", kitchenSummary(e("c", "open", "current_position" to 100), listOf(idle, idle, idle)))
-        assertEquals("Volet ouvert · 2 minuteurs en cours", kitchenSummary(e("c", "open", "current_position" to 100), listOf(e("t", "active"), e("t", "paused"), idle)))
-        assertEquals("Volet fermé · 1 minuteur en cours", kitchenSummary(e("c", "closed", "current_position" to 0), listOf(e("t", "active"))))
+        assertEquals("Volet ouvert · minuteurs prêts", kitchenSummary(e("c", "open", "current_position" to 100), 0))
+        assertEquals("Volet ouvert · 2 minuteurs en cours", kitchenSummary(e("c", "open", "current_position" to 100), 2))
+        assertEquals("Volet fermé · 1 minuteur en cours", kitchenSummary(e("c", "closed", "current_position" to 0), 1))
     }
 }

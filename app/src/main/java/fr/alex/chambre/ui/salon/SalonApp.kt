@@ -96,8 +96,10 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
     val upcoming by vm.announcements.upcoming.collectAsStateWithLifecycle()
     val calendarError by vm.announcements.error.collectAsStateWithLifecycle()
     val opened by vm.cuisine.opened.collectAsStateWithLifecycle()
+    val sharedTimers by vm.timers.timers.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
+    LaunchedEffect(Unit) { vm.timers.refusals.collect { snackbar.showSnackbar(it) } }
 
     var tab by remember { mutableStateOf(SalonTab.SALON) }
     var touches by remember { mutableIntStateOf(0) }
@@ -149,7 +151,7 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
                         onSelect = { tab = it },
                         summaries = mapOf(
                             SalonTab.SALON to roomSummary(entities[Entities.SALON_ROOM.light], entities[Entities.SALON_ROOM.cover], plural = true),
-                            SalonTab.CUISINE to kitchenSummary(entities[Entities.KITCHEN_COVER], Entities.KITCHEN_TIMERS.map { entities[it] }),
+                            SalonTab.CUISINE to kitchenSummary(entities[Entities.KITCHEN_COVER], sharedTimers.size),
                             SalonTab.CHAMBRE to roomSummary(entities[Entities.LIGHT], entities[Entities.COVER], plural = false),
                         ),
                         temperature = entities[Entities.SALON_TEMPERATURE]?.state,
@@ -165,7 +167,7 @@ fun SalonApp(vm: DashboardViewModel, settings: Settings, onOpenSettings: () -> U
                                 colors = false, compact = true, title = "Lumières",
                             )
                         }
-                        SalonTab.CUISINE -> CuisinePanels(vm, Modifier.weight(1f))
+                        SalonTab.CUISINE -> CuisinePanels(vm, Modifier.weight(1f), narrow = true)
                         SalonTab.CHAMBRE -> ChambrePanels(entities, online, lastScene, vm.controller, presence == Presence.ASLEEP, Modifier.weight(1f), narrow = true)
                     }
                 }
@@ -243,7 +245,6 @@ private fun AnnouncementOverlays(tick: Tick, onAcknowledge: (String) -> Unit) {
 private fun Banner(a: Announcement, onAcknowledge: (String) -> Unit) {
     val (label, title, icon) = when (a) {
         is Announcement.Meeting -> Triple("RÉUNION DANS 5 MIN · " + HM.format(a.start.atZone(ZoneId.systemDefault())), a.title, Icons.AutoMirrored.Filled.VolumeUp)
-        is Announcement.TimerDone -> Triple("MINUTEUR", a.name + " terminé", Icons.Filled.Timer)
         is Announcement.Alert -> Triple("ALERTE", a.title, Icons.Filled.NotificationsActive)
     }
     Surface(shape = RoundedCornerShape(32.dp), color = Color(0xFF6A3B00), contentColor = Color(0xFFFFDCBE), shadowElevation = 12.dp, modifier = Modifier.width(780.dp)) {
@@ -255,15 +256,11 @@ private fun Banner(a: Announcement, onAcknowledge: (String) -> Unit) {
                 Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 Text(title, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFFFF3E6))
             }
-            if (a is Announcement.TimerDone) {
-                Button(onClick = { onAcknowledge(a.key) }, modifier = Modifier.height(56.dp)) { Text("OK", style = MaterialTheme.typography.titleMedium) }
-            } else {
-                FilledTonalIconButton(
-                    onClick = { onAcknowledge(a.key) },
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Color(0x26FFDCBE), contentColor = Color(0xFFFFDCBE)),
-                    modifier = Modifier.size(52.dp),
-                ) { Icon(Icons.Filled.Close, "Fermer") }
-            }
+            FilledTonalIconButton(
+                onClick = { onAcknowledge(a.key) },
+                colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Color(0x26FFDCBE), contentColor = Color(0xFFFFDCBE)),
+                modifier = Modifier.size(52.dp),
+            ) { Icon(Icons.Filled.Close, "Fermer") }
         }
     }
 }

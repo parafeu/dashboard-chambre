@@ -83,4 +83,19 @@ class PresenceControllerTest {
         advance(60_000)
         assertEquals(Presence.ASLEEP, c.state.value)
     }
+
+    @Test
+    fun alarm_wakes_and_blocks_sleep() = runTest {
+        val c = controller()
+        advance(61_000)
+        assertEquals(Presence.ASLEEP, c.state.value)
+        c.alarm = true
+        assertEquals(Presence.AWAKE, c.state.value)
+        c.hold = false // another screen releasing its hold must not let a ringing tablet sleep
+        advance(5 * 60_000)
+        assertEquals(Presence.AWAKE, c.state.value)
+        c.alarm = false
+        advance(61_000)
+        assertEquals(Presence.ASLEEP, c.state.value)
+    }
 }

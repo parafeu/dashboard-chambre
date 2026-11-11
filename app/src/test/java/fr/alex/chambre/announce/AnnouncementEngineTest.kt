@@ -109,18 +109,6 @@ class AnnouncementEngineTest {
     }
 
     @Test
-    fun timer_repeats_every_thirty_seconds_five_times_until_ok() {
-        engine.timerFinished("Minuteur 1", t("2026-10-17T10:00:00Z"))
-        val said = (0..200 step 5).count { engine.tick(t("2026-10-17T10:00:00Z").plusSeconds(it.toLong()), emptySet()).speak.isNotEmpty() }
-        assertEquals(5, said)
-        val tick = engine.tick(t("2026-10-17T10:05:00Z"), emptySet())
-        val banner = tick.banner as Announcement.TimerDone
-        assertEquals("Minuteur 1 terminé", speechFor(banner))
-        engine.acknowledge(banner.key)
-        assertNull(engine.tick(t("2026-10-17T10:05:05Z"), emptySet()).banner)
-    }
-
-    @Test
     fun alert_speaks_first_and_meeting_follows_on_next_tick() {
         engine.setEvents(listOf(alert("Litière", "2026-10-17T11:55:00Z"), meeting("Point", "2026-10-17T12:00:00Z")))
         assertEquals(listOf("Alerte : Litière"), spoken(engine.tick(t("2026-10-17T11:55:00Z"), emptySet())))

@@ -24,8 +24,7 @@ fun roomSummary(light: EntityState?, cover: EntityState?, plural: Boolean): Stri
 }
 
 /** « Volet ouvert · 2 minuteurs en cours » */
-fun kitchenSummary(cover: EntityState?, timers: List<EntityState?>): String {
-    val running = timers.count { it?.state == "active" || it?.state == "paused" }
+fun kitchenSummary(cover: EntityState?, running: Int): String {
     val t = when (running) {
         0 -> "minuteurs prêts"
         1 -> "1 minuteur en cours"

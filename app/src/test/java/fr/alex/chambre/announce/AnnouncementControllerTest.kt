@@ -27,17 +27,6 @@ import java.time.ZoneId
 private const val W = "11"
 private const val A = "12"
 
-/** Home Assistant is only used for timer events now. */
-private class TimerApi : HaApi {
-    override val conn = MutableStateFlow(ConnState.CONNECTED)
-    override val entities = MutableStateFlow<Map<String, EntityState>>(emptyMap())
-    override val forecast = MutableStateFlow<List<ForecastEntry>>(emptyList())
-    override val forecastDaily = MutableStateFlow<List<ForecastEntry>>(emptyList())
-    override val errors = MutableSharedFlow<String>()
-    override val events = MutableSharedFlow<Incoming.HaEvent>(extraBufferCapacity = 4)
-    override suspend fun call(domain: String, service: String, entityId: String, data: JsonObject) = true
-}
-
 private class FakeCalendars : CalendarSource {
     var permission = true
     /** calendar id → events; an id absent from the map is a calendar that is not on the tablet. */
@@ -67,7 +56,6 @@ private class FakeSpeaker : Speaker {
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnnouncementControllerTest {
     private val base = Instant.parse("2026-10-17T11:54:00Z")
-    private val api = TimerApi()
     private val cals = FakeCalendars()
     private val store = MemStore()
     private val speaker = FakeSpeaker()
@@ -79,7 +67,7 @@ class AnnouncementControllerTest {
 
     private fun TestScope.start(): AnnouncementController =
         AnnouncementController(
-            backgroundScope, api, cals, settings, store, speaker,
+            backgroundScope, cals, settings, store, speaker,
             now = { base.plusMillis(testScheduler.currentTime) },
             zone = ZoneId.of("Europe/Paris"),
             wake = { wakes++ },
@@ -168,28 +156,6 @@ class AnnouncementControllerTest {
     }
 
     @Test
-    fun timer_finished_uses_friendly_name() = runTest {
-        cals.events[W] = emptyList()
-        cals.events[A] = emptyList()
-        api.entities.value = mapOf("timer.minuteur_2" to EntityState("timer.minuteur_2", "idle", JsonObject(mapOf("friendly_name" to JsonPrimitive("Minuteur 2")))))
-        start()
-        api.events.emit(Incoming.HaEvent(9, "timer.finished", JsonObject(mapOf("entity_id" to JsonPrimitive("timer.minuteur_2")))))
-        advance(5_000)
-        assertEquals(listOf("Minuteur 2 terminé"), speaker.said)
-    }
-
-    @Test
-    fun only_kitchen_timers_are_announced() = runTest {
-        cals.events[W] = emptyList()
-        cals.events[A] = emptyList()
-        val c = start()
-        api.events.emit(Incoming.HaEvent(9, "timer.finished", JsonObject(mapOf("entity_id" to JsonPrimitive("timer.lave_linge")))))
-        advance(5_000)
-        assertTrue(speaker.said.isEmpty())
-        assertTrue(c.state.value.banner == null)
-    }
-
-    @Test
     fun bedroom_mode_does_nothing() = runTest { // RF5
         settings.value = Settings(token = "t", room = Room.CHAMBRE, workCalendar = W, alertsCalendar = A)
         val c = start()
@@ -224,7 +190,6 @@ class AnnouncementControllerTest {
 
     @Test
     fun calendars_are_read_without_home_assistant() = runTest {
-        api.conn.value = ConnState.CONNECTING
         cals.events[W] = listOf(ev(W, "Revue", "2026-10-17T14:30:00Z"))
         cals.events[A] = emptyList()
         val c = start()

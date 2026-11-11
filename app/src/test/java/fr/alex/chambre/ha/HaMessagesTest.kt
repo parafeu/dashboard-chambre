@@ -163,18 +163,49 @@ class HaMessagesTest {
     }
 
     @Test
-    fun parses_ha_event() {
-        val e = HaProtocol.parse("""{"id":4,"type":"event","event":{"event_type":"timer.finished","data":{"entity_id":"timer.minuteur_1"},"origin":"LOCAL","time_fired":"2026-10-17T10:00:00+00:00"}}""") as Incoming.HaEvent
-        assertEquals(4, e.id)
-        assertEquals("timer.finished", e.eventType)
-        assertEquals("timer.minuteur_1", e.data["entity_id"]!!.jsonPrimitive.content)
+    fun get_states_message() {
+        assertEquals(
+            Json.parseToJsonElement("""{"id":5,"type":"get_states"}"""),
+            Json.parseToJsonElement(HaProtocol.getStates(5)),
+        )
     }
 
     @Test
-    fun builds_subscribe_events() {
-        assertEquals(
-            Json.parseToJsonElement("""{"id":4,"type":"subscribe_events","event_type":"timer.finished"}"""),
-            Json.parseToJsonElement(HaProtocol.subscribeEvents(4, "timer.finished")),
+    fun todo_lists_from_states_keep_only_todo_entities_sorted_by_name() {
+        val states = Json.parseToJsonElement(
+            """[{"entity_id":"todo.liste_dachats","state":"0","attributes":{"friendly_name":"Shopping list"}},
+                {"entity_id":"light.x","state":"on","attributes":{}},
+                {"entity_id":"todo.minuteries_foyer","state":"0","attributes":{"friendly_name":"Minuteries foyer"}},
+                {"entity_id":"todo.sans_nom","state":"0","attributes":{}}]""",
         )
+        assertEquals(
+            listOf(
+                TodoList("todo.minuteries_foyer", "Minuteries foyer"),
+                TodoList("todo.liste_dachats", "Shopping list"),
+                TodoList("todo.sans_nom", "todo.sans_nom"),
+            ),
+            todoListsFrom(states),
+        )
+    }
+
+    @Test
+    fun subscribe_todo_items_message() {
+        assertEquals(
+            Json.parseToJsonElement("""{"id":4,"type":"todo/item/subscribe","entity_id":"todo.minuteries_foyer"}"""),
+            Json.parseToJsonElement(HaProtocol.subscribeTodoItems(4, "todo.minuteries_foyer")),
+        )
+    }
+
+    @Test
+    fun parses_todo_items_event() {
+        val msg = HaProtocol.parse(
+            """{"id":7,"type":"event","event":{"items":[{"uid":"a","summary":"Pâtes","status":"needs_action","description":"{\"v\":1}"},{"uid":"b","summary":"x","status":"needs_action"}]}}""",
+        )
+        assertEquals(Incoming.TodoItemsEvent(7, listOf(TodoItem("a", "Pâtes", """{"v":1}"""), TodoItem("b", "x", null))), msg)
+    }
+
+    @Test
+    fun empty_items_list_is_an_event_not_an_entities_diff() {
+        assertEquals(Incoming.TodoItemsEvent(7, emptyList()), HaProtocol.parse("""{"id":7,"type":"event","event":{"items":[]}}"""))
     }
 }

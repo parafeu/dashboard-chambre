@@ -17,12 +17,27 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.time.OffsetDateTime
 
+/** One item of a Home Assistant to-do list (`todo/item/subscribe`). */
+data class TodoItem(val uid: String, val summary: String, val description: String?)
+
+/** A Home Assistant to-do list entity, for the settings picker. */
+data class TodoList(val entityId: String, val name: String)
+
+/** The `todo.*` entities of a `get_states` result, by name. */
+fun todoListsFrom(states: JsonElement?): List<TodoList> =
+    (states as? JsonArray).orEmpty().mapNotNull { el ->
+        val o = el as? JsonObject ?: return@mapNotNull null
+        val id = (o["entity_id"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return@mapNotNull null
+        if (!id.startsWith("todo.")) return@mapNotNull null
+        val name = ((o["attributes"] as? JsonObject)?.get("friendly_name") as? JsonPrimitive)?.takeIf { it.isString }?.content
+        TodoList(id, name ?: id)
+    }.sortedBy { it.name.lowercase() }
+
 sealed interface Incoming {
     data object AuthRequired : Incoming
     data object AuthOk : Incoming
     data class AuthInvalid(val message: String) : Incoming
     data class Result(val id: Int, val success: Boolean, val errorMessage: String?, val result: JsonElement? = null) : Incoming
-    data class HaEvent(val id: Int, val eventType: String, val data: JsonObject) : Incoming
     data class EntitiesEvent(
         val id: Int,
         val added: Map<String, EntityState>,
@@ -30,6 +45,8 @@ sealed interface Incoming {
         val removed: List<String>,
     ) : Incoming
     data class ForecastEvent(val id: Int, val hours: List<ForecastEntry>) : Incoming
+    /** The whole list, on subscribe and after every change. */
+    data class TodoItemsEvent(val id: Int, val items: List<TodoItem>) : Incoming
     data object Unknown : Incoming
 }
 
@@ -55,8 +72,14 @@ object HaProtocol {
     }
 
     private fun parseEvent(id: Int, event: JsonObject): Incoming {
-        event.str("event_type")?.let { type ->
-            return Incoming.HaEvent(id, type, event["data"] as? JsonObject ?: JsonObject(emptyMap()))
+        (event["items"] as? JsonArray)?.let { items ->
+            return Incoming.TodoItemsEvent(
+                id,
+                items.mapNotNull { el ->
+                    val o = el as? JsonObject ?: return@mapNotNull null
+                    TodoItem(o.str("uid") ?: return@mapNotNull null, o.str("summary") ?: "", o.str("description"))
+                },
+            )
         }
         val forecast = event["forecast"] as? JsonArray
         if (forecast != null) {
@@ -118,10 +141,15 @@ object HaProtocol {
         put("service_data", data)
     }.toString()
 
-    fun subscribeEvents(id: Int, eventType: String): String = buildJsonObject {
+    fun getStates(id: Int): String = buildJsonObject {
         put("id", id)
-        put("type", "subscribe_events")
-        put("event_type", eventType)
+        put("type", "get_states")
+    }.toString()
+
+    fun subscribeTodoItems(id: Int, entityId: String): String = buildJsonObject {
+        put("id", id)
+        put("type", "todo/item/subscribe")
+        put("entity_id", entityId)
     }.toString()
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
