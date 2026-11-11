@@ -177,4 +177,25 @@ class HaMessagesTest {
             Json.parseToJsonElement(HaProtocol.subscribeEvents(4, "timer.finished")),
         )
     }
+
+    @Test
+    fun subscribe_todo_items_message() {
+        assertEquals(
+            Json.parseToJsonElement("""{"id":4,"type":"todo/item/subscribe","entity_id":"todo.minuteries_foyer"}"""),
+            Json.parseToJsonElement(HaProtocol.subscribeTodoItems(4, "todo.minuteries_foyer")),
+        )
+    }
+
+    @Test
+    fun parses_todo_items_event() {
+        val msg = HaProtocol.parse(
+            """{"id":7,"type":"event","event":{"items":[{"uid":"a","summary":"Pâtes","status":"needs_action","description":"{\"v\":1}"},{"uid":"b","summary":"x","status":"needs_action"}]}}""",
+        )
+        assertEquals(Incoming.TodoItemsEvent(7, listOf(TodoItem("a", "Pâtes", """{"v":1}"""), TodoItem("b", "x", null))), msg)
+    }
+
+    @Test
+    fun empty_items_list_is_an_event_not_an_entities_diff() {
+        assertEquals(Incoming.TodoItemsEvent(7, emptyList()), HaProtocol.parse("""{"id":7,"type":"event","event":{"items":[]}}"""))
+    }
 }

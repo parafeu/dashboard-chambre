@@ -33,6 +33,8 @@ sealed interface Incoming {
         val removed: List<String>,
     ) : Incoming
     data class ForecastEvent(val id: Int, val hours: List<ForecastEntry>) : Incoming
+    /** The whole list, on subscribe and after every change. */
+    data class TodoItemsEvent(val id: Int, val items: List<TodoItem>) : Incoming
     data object Unknown : Incoming
 }
 
@@ -60,6 +62,15 @@ object HaProtocol {
     private fun parseEvent(id: Int, event: JsonObject): Incoming {
         event.str("event_type")?.let { type ->
             return Incoming.HaEvent(id, type, event["data"] as? JsonObject ?: JsonObject(emptyMap()))
+        }
+        (event["items"] as? JsonArray)?.let { items ->
+            return Incoming.TodoItemsEvent(
+                id,
+                items.mapNotNull { el ->
+                    val o = el as? JsonObject ?: return@mapNotNull null
+                    TodoItem(o.str("uid") ?: return@mapNotNull null, o.str("summary") ?: "", o.str("description"))
+                },
+            )
         }
         val forecast = event["forecast"] as? JsonArray
         if (forecast != null) {
@@ -119,6 +130,12 @@ object HaProtocol {
         put("service", service)
         putJsonObject("target") { put("entity_id", entityId) }
         put("service_data", data)
+    }.toString()
+
+    fun subscribeTodoItems(id: Int, entityId: String): String = buildJsonObject {
+        put("id", id)
+        put("type", "todo/item/subscribe")
+        put("entity_id", entityId)
     }.toString()
 
     fun subscribeEvents(id: Int, eventType: String): String = buildJsonObject {

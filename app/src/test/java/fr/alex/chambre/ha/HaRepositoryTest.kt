@@ -224,6 +224,34 @@ class HaRepositoryTest {
         assertEquals(listOf("light.a", "cover.b"), sub["entity_ids"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 
+    private fun timersRepo() = HaRepository(scope, client, flowOf(HaConfig(server.url("/").toString().trimEnd('/'), "secret", timers = true)), listOf(10))
+
+    @Test
+    fun subscribes_to_timer_list_when_enabled() = runBlocking {
+        val fake = FakeHa().also(::enqueue)
+        timersRepo()
+        fake.handshake()
+        val sub = fake.next()
+        assertEquals("todo/item/subscribe", sub["type"]!!.jsonPrimitive.content)
+        assertEquals(Entities.TIMERS_LIST, sub["entity_id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun timer_items_follow_events_and_reset_offline() = runBlocking {
+        val fake = FakeHa().also(::enqueue)
+        FakeHa().also(::enqueue) // the reconnection after the close below
+        val r = timersRepo()
+        assertEquals(null, r.timerItems.value)
+        fake.handshake()
+        val id = fake.next()["id"]!!.jsonPrimitive.int
+        fake.socket.send("""{"id":$id,"type":"event","event":{"items":[{"uid":"a","summary":"Pâtes","status":"needs_action","description":"d"}]}}""")
+        val items = withTimeout(5_000) { r.timerItems.first { it != null } }
+        assertEquals(listOf(TodoItem("a", "Pâtes", "d")), items)
+        fake.socket.close(1001, "restart")
+        withTimeout(5_000) { r.timerItems.first { it == null } }
+        Unit
+    }
+
     @Test
     fun timer_events_subscription_and_relay() = runBlocking {
         val fake = FakeHa().also(::enqueue)

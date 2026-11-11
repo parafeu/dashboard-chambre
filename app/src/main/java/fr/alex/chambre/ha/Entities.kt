@@ -56,6 +56,8 @@ object Entities {
     fun timerStartScript(timer: String, minutes: Int): String =
         "script.demarrer_" + timer.removePrefix("timer.").replace("_", "") + "_" + minutes + "min"
     const val SHOPPING_LIST = "todo.liste_dachats"
+    /** Local To-do list holding the shared kitchen timers (one item per timer, see timers/SharedTimer.kt). */
+    const val TIMERS_LIST = "todo.minuteries_foyer"
     const val KITCHEN_TABLET_PLUG = "switch.grillplats_plug"
 
     val ALL: List<String> = listOf(LIGHT, COVER, HALF, WEATHER) + SCENES.map { it.entityId }
