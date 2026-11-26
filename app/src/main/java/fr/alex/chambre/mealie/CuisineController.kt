@@ -54,6 +54,10 @@ class CuisineController(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _refreshing = MutableStateFlow(false)
+    /** True while the list is being read (the refresh button spins). */
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
     private val _opened = MutableStateFlow<OpenedRecipe?>(null)
     val opened: StateFlow<OpenedRecipe?> = _opened.asStateFlow()
 
@@ -92,12 +96,15 @@ class CuisineController(
     }
 
     private suspend fun load(a: MealieApi) {
+        _refreshing.value = true
         try {
             _recipes.value = a.recipes()
             _today.value = runCatching { a.todayMeals() }.getOrDefault(emptyList()) // no meal plan: no banner
             _error.value = null
         } catch (e: MealieException) {
             _error.value = e.message
+        } finally {
+            _refreshing.value = false
         }
     }
 

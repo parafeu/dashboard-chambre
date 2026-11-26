@@ -23,8 +23,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -123,6 +125,7 @@ fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier, narrow:
     val recipes by vm.cuisine.recipes.collectAsStateWithLifecycle()
     val today by vm.cuisine.today.collectAsStateWithLifecycle()
     val error by vm.cuisine.error.collectAsStateWithLifecycle()
+    val refreshing by vm.cuisine.refreshing.collectAsStateWithLifecycle()
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (narrow) 16.dp else 20.dp)) {
         CoverPanel(entities[Entities.KITCHEN_COVER], conn == ConnState.CONNECTED, vm.kitchenController, Modifier.width(if (narrow) 170.dp else 200.dp))
         TimersPanel(vm, Modifier.width(if (narrow) 290.dp else 330.dp))
@@ -135,6 +138,7 @@ fun CuisinePanels(vm: DashboardViewModel, modifier: Modifier = Modifier, narrow:
             modifier = Modifier.weight(1f),
             columns = if (narrow) 1 else 2,
             inlineSearch = !narrow,
+            refreshing = refreshing,
         )
     }
 }
@@ -181,6 +185,8 @@ internal fun RecipesPanel(
     /** Search box beside the title (wall tablets) rather than full width below it (phone). */
     inlineSearch: Boolean = columns >= 3,
     lazy: Boolean = true,
+    /** The list is being read again: the refresh button turns into a spinner. */
+    refreshing: Boolean = false,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var filter by remember { mutableStateOf<RecipeFilter>(RecipeFilter.All) }
@@ -199,6 +205,19 @@ internal fun RecipesPanel(
                     modifier = Modifier.padding(start = 6.dp).weight(1f),
                 )
                 if (inlineSearch) SearchBox(query, { query = it }, Modifier.width(if (columns >= 3) 300.dp else 260.dp))
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    if (refreshing) {
+                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+                    } else {
+                        IconButton(onClick = onRetry, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Filled.Refresh, "Actualiser les recettes", tint = colors.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            // The last list stays on screen when Mealie cannot be read: say so under the title.
+            if (error != null && recipes.isNotEmpty() && !refreshing) {
+                Text(error, color = colors.error, fontSize = 14.sp, modifier = Modifier.padding(start = 6.dp))
             }
             // Narrow phone column: the search box gets its own line.
             if (!inlineSearch) SearchBox(query, { query = it }, Modifier.fillMaxWidth())

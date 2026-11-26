@@ -20,8 +20,10 @@ private class FakeMealie : MealieApi {
     var meals = listOf(MealPlanEntry("dinner", "dahl", "DAHL"))
     var failWith: String? = null
     var calls = 0
+    var gate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
     override suspend fun recipes(): List<RecipeSummary> {
         calls++
+        gate?.await()
         failWith?.let { throw MealieException(it) }
         return list
     }
@@ -113,6 +115,21 @@ class CuisineControllerTest {
         api.list = listOf(card("soupe"))
         advanceTimeBy(30 * 60_000L + 1)
         runCurrent()
+        assertEquals(listOf("soupe"), c.recipes.value.map { it.slug })
+    }
+
+    @Test
+    fun a_refresh_is_shown_while_it_reads_and_brings_the_new_list() = runTest {
+        val c = start()
+        assertEquals(false, c.refreshing.value)
+        api.list = listOf(card("soupe"))
+        api.gate = kotlinx.coroutines.CompletableDeferred()
+        c.refresh()
+        runCurrent()
+        assertEquals(true, c.refreshing.value)
+        api.gate!!.complete(Unit)
+        runCurrent()
+        assertEquals(false, c.refreshing.value)
         assertEquals(listOf("soupe"), c.recipes.value.map { it.slug })
     }
 

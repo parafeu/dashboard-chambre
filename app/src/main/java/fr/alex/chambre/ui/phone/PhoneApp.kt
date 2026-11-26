@@ -91,6 +91,7 @@ fun PhoneApp(vm: DashboardViewModel, request: TabRequest, onOpenSettings: () -> 
     val recipes by vm.cuisine.recipes.collectAsStateWithLifecycle()
     val today by vm.cuisine.today.collectAsStateWithLifecycle()
     val recipeError by vm.cuisine.error.collectAsStateWithLifecycle()
+    val recipesRefreshing by vm.cuisine.refreshing.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { vm.ha.errors.collect { snackbar.showSnackbar(it) } }
 
@@ -128,6 +129,7 @@ fun PhoneApp(vm: DashboardViewModel, request: TabRequest, onOpenSettings: () -> 
                                 modifier = Modifier.fillMaxWidth(),
                                 columns = 2,
                                 lazy = false,
+                                refreshing = recipesRefreshing,
                             )
                         }
                         SalonTab.CHAMBRE -> {
